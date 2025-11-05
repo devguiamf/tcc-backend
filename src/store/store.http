@@ -1,0 +1,119 @@
+### Store Module - HTTP Test Requests
+### Base URL - Update the port if needed
+@baseUrl = http://localhost:3000
+
+### Variables
+@storeId = a027d876-b983-417b-b055-6248b5f46218
+@userId = 7370bf2e-4852-4e80-9b15-61ee393250d2
+
+### Test endpoint
+GET {{baseUrl}}/stores/admin/test
+
+### Create Store
+POST {{baseUrl}}/stores
+Content-Type: application/json
+
+{
+  "name": "My Store",
+  "userId": "{{userId}}",
+  "workingHours": [
+    {
+      "dayOfWeek": 0,
+      "isOpen": true,
+      "openTime": "09:00",
+      "closeTime": "18:00"
+    },
+    {
+      "dayOfWeek": 1,
+      "isOpen": true,
+      "openTime": "09:00",
+      "closeTime": "18:00"
+    },
+    {
+      "dayOfWeek": 2,
+      "isOpen": true,
+      "openTime": "09:00",
+      "closeTime": "18:00"
+    },
+    {
+      "dayOfWeek": 3,
+      "isOpen": true,
+      "openTime": "09:00",
+      "closeTime": "18:00"
+    },
+    {
+      "dayOfWeek": 4,
+      "isOpen": true,
+      "openTime": "09:00",
+      "closeTime": "18:00"
+    },
+    {
+      "dayOfWeek": 5,
+      "isOpen": true,
+      "openTime": "09:00",
+      "closeTime": "18:00"
+    },
+    {
+      "dayOfWeek": 6,
+      "isOpen": false
+    }
+  ],
+  "location": {
+    "street": "Rua Example",
+    "number": "123",
+    "complement": "Apt 45",
+    "neighborhood": "Centro",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "01310-100",
+    "latitude": -23.5505,
+    "longitude": -46.6333
+  },
+  "imageUrl": "https://example.com/store-image.jpg"
+}
+
+### Get All Stores
+GET {{baseUrl}}/stores
+
+### Get Store By ID
+GET {{baseUrl}}/stores/{{storeId}}
+
+### Get Store By User ID
+GET {{baseUrl}}/stores/user/{{userId}}
+
+### Update Store
+PUT {{baseUrl}}/stores/{{storeId}}
+Content-Type: application/json
+
+{
+  "name": "Updated Store Name",
+  "workingHours": [
+    {
+      "dayOfWeek": 0,
+      "isOpen": true,
+      "openTime": "10:00",
+      "closeTime": "19:00"
+    }
+  ],
+  "location": {
+    "street": "New Street",
+    "number": "456",
+    "neighborhood": "New Neighborhood",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "01311-200"
+  },
+  "imageUrl": "https://example.com/new-image.jpg"
+}
+
+### Update Store - Partial
+PUT {{baseUrl}}/stores/{{storeId}}
+Content-Type: application/json
+
+{
+  "name": "Partially Updated Store"
+}
+
+### Delete Store
+DELETE {{baseUrl}}/stores/{{storeId}}
+

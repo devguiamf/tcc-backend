@@ -1,0 +1,76 @@
+### Service Module - HTTP Test Requests
+### Base URL - Update the port if needed
+@baseUrl = http://localhost:3000
+
+### Variables
+@serviceId = a027d876-b983-417b-b055-6248b5f46218
+@storeId = b027d876-b983-417b-b055-6248b5f46219
+@token = your-jwt-token-here
+
+### Test endpoint
+GET {{baseUrl}}/services/admin/test
+
+### Create Service (Requires Authentication)
+POST {{baseUrl}}/services
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Corte de Cabelo Masculino",
+  "description": "Corte de cabelo moderno com técnicas profissionais",
+  "price": 50.00,
+  "durationMinutes": 30,
+  "imageUrl": "https://example.com/service-image.jpg"
+}
+
+### Create Service - Without Image
+POST {{baseUrl}}/services
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Barba Completa",
+  "description": "Aparar e modelar barba com toalha quente e finalização",
+  "price": 35.00,
+  "durationMinutes": 25
+}
+
+### Get All Services
+GET {{baseUrl}}/services
+
+### Get My Services (Requires Authentication)
+GET {{baseUrl}}/services/my-services
+Authorization: Bearer {{token}}
+
+### Get Services By Store ID
+GET {{baseUrl}}/services/store/{{storeId}}
+
+### Get Service By ID
+GET {{baseUrl}}/services/{{serviceId}}
+
+### Update Service (Requires Authentication)
+PUT {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Corte de Cabelo Masculino Atualizado",
+  "description": "Corte de cabelo moderno com técnicas profissionais e finalização premium",
+  "price": 60.00,
+  "durationMinutes": 35,
+  "imageUrl": "https://example.com/new-service-image.jpg"
+}
+
+### Update Service - Partial Update
+PUT {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "price": 55.00
+}
+
+### Delete Service (Requires Authentication)
+DELETE {{baseUrl}}/services/{{serviceId}}
+Authorization: Bearer {{token}}
+

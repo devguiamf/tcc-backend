@@ -1,0 +1,64 @@
+### User Module - HTTP Test Requests
+### Base URL - Update the port if needed
+@baseUrl = http://localhost:3000
+
+### Variables
+@userId = {{$randomUUID}}
+@userEmail = user@example.com
+@userPassword = password123
+
+### Test endpoint
+GET {{baseUrl}}/users/admin/test
+
+### Create User - Cliente
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}",
+  "type": "cliente",
+  "cpf": "123.456.789-00",
+  "phone": "11999999999"
+}
+
+### Create User - Prestador
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "name": "Jane Smith",
+  "email": "jane@example.com",
+  "password": "{{userPassword}}",
+  "type": "prestador",
+  "cpf": "987.654.321-00",
+  "phone": "11988888888"
+}
+
+### Get All Users
+GET {{baseUrl}}/users
+
+### Get User By ID
+GET {{baseUrl}}/users/{{userId}}
+
+### Update User
+PUT {{baseUrl}}/users/{{userId}}
+Content-Type: application/json
+
+{
+  "name": "John Updated",
+  "phone": "11977777777"
+}
+
+### Update User Password
+PUT {{baseUrl}}/users/{{userId}}
+Content-Type: application/json
+
+{
+  "password": "newpassword123"
+}
+
+### Delete User
+DELETE {{baseUrl}}/users/{{userId}}
+

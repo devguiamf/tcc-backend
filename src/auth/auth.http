@@ -1,0 +1,76 @@
+### Auth Module - HTTP Test Requests
+### Base URL - Update the port if needed
+@baseUrl = http://localhost:3000
+
+### Variables
+@email = legostartbr@gmail.com
+@password = password123
+@newPassword = newpassword123
+
+### Test endpoint
+GET {{baseUrl}}/auth/admin/test
+
+### Signup
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "type": "cliente",
+  "cpf": "123.456.789-00",
+  "phone": "11999999999"
+}
+
+### Signup - Prestador
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "name": "Jane Smith",
+  "email": "jane@example.com",
+  "password": "{{password}}",
+  "type": "prestador",
+  "cpf": "987.654.321-00",
+  "phone": "11988888888"
+}
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Request Password Reset (Step 1)
+### Sends an email with reset code link
+POST {{baseUrl}}/auth/request-password-reset
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+### Confirm Password Reset (Step 2)
+### Use the code received in the email
+POST {{baseUrl}}/auth/confirm-password-reset
+Content-Type: application/json
+
+{
+  "code": "reset-code-from-email",
+  "password": "{{newPassword}}",
+  "confirmPassword": "{{newPassword}}"
+}
+
+### Reset Password (Legacy - kept for backward compatibility)
+POST {{baseUrl}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "newPassword": "{{newPassword}}"
+}
+
