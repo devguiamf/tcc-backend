@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserType } from './types/user.types';
+import { getUserTypeColumnOptions } from './utils/column-type.helper';
 
 @Entity('users')
 export class UserEntity {
@@ -21,11 +22,7 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 255 })
   password: string;
 
-  @Column({
-    type: 'enum',
-    enum: UserType,
-    default: UserType.CLIENTE,
-  })
+  @Column(getUserTypeColumnOptions())
   type: UserType;
 
   @Column({ type: 'varchar', length: 14, nullable: true })
