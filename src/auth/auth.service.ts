@@ -5,7 +5,6 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { UserRepository } from '../user/user.repository';
 import { SignupDto } from './models/dto/signup.dto';
@@ -20,6 +19,7 @@ import { PasswordResetCodeRepository } from './repositories/password-reset-code.
 import { EmailService } from '../shared/services/email.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {

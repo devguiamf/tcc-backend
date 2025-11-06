@@ -15,7 +15,6 @@ import {
   Length,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { WorkingHours, Location } from '../types/store.types';
 
 export class WorkingHoursDto {
   @IsNumber()
@@ -102,6 +101,7 @@ export class CreateStoreDto {
   @Type(() => WorkingHoursDto)
   workingHours: WorkingHoursDto[];
 
+  @IsNotEmpty()
   @ValidateNested()
   @Type(() => LocationDto)
   location: LocationDto;

@@ -3,7 +3,7 @@
 @baseUrl = http://localhost:3000
 
 ### Variables
-@storeId = a027d876-b983-417b-b055-6248b5f46218
+@storeId = d13245b5-fde4-4ae7-9136-e27802c1cb59
 @userId = 7370bf2e-4852-4e80-9b15-61ee393250d2
 
 ### Test endpoint
@@ -58,17 +58,7 @@ Content-Type: application/json
       "isOpen": false
     }
   ],
-  "location": {
-    "street": "Rua Example",
-    "number": "123",
-    "complement": "Apt 45",
-    "neighborhood": "Centro",
-    "city": "São Paulo",
-    "state": "SP",
-    "zipCode": "01310-100",
-    "latitude": -23.5505,
-    "longitude": -46.6333
-  },
+ 
   "imageUrl": "https://example.com/store-image.jpg"
 }
 
