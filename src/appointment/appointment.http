@@ -1,0 +1,52 @@
+### Variables
+@baseUrl = http://localhost:3000
+@token = your_jwt_token_here
+
+### Create Appointment
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "storeId": "store-uuid-here",
+  "serviceId": "service-uuid-here",
+  "appointmentDate": "2024-12-25T10:00:00.000Z",
+  "notes": "Please arrive 10 minutes early"
+}
+
+### Get All Appointments (Current User)
+GET {{baseUrl}}/appointments
+Authorization: Bearer {{token}}
+
+### Get Appointment by ID
+GET {{baseUrl}}/appointments/appointment-uuid-here
+Authorization: Bearer {{token}}
+
+### Get Appointments by Store
+GET {{baseUrl}}/appointments/store/store-uuid-here
+Authorization: Bearer {{token}}
+
+### Get Available Time Slots
+GET {{baseUrl}}/appointments/available-slots/store-uuid-here/service-uuid-here?date=2024-12-25
+
+### Update Appointment
+PUT {{baseUrl}}/appointments/appointment-uuid-here
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "appointmentDate": "2024-12-25T14:00:00.000Z",
+  "notes": "Updated notes"
+}
+
+### Cancel Appointment
+POST {{baseUrl}}/appointments/appointment-uuid-here/cancel
+Authorization: Bearer {{token}}
+
+### Delete Appointment
+DELETE {{baseUrl}}/appointments/appointment-uuid-here
+Authorization: Bearer {{token}}
+
+### Admin Test Endpoint
+GET {{baseUrl}}/appointments/admin/test
+

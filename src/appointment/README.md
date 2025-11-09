@@ -1,331 +1,389 @@
-# Appointment Module - TODO
+# Appointment Module
 
-## Visão Geral
+## Description
 
-Este documento descreve o escopo e as tarefas necessárias para implementar o módulo de agendamento (appointment) do sistema. O módulo permite que clientes autenticados agendem serviços em lojas, com cálculo automático de horários disponíveis baseado no funcionamento da loja, intervalo de agendamento e agendamentos existentes.
+The Appointment module manages service appointments for clients (CLIENTE users) in stores. The module allows authenticated clients to schedule services at stores, with automatic calculation of available time slots based on store working hours, appointment intervals, service duration, and existing appointments. The module handles CRUD operations for appointments with comprehensive validation and conflict detection.
 
-## Análise do Escopo
+## Endpoints
 
-### Entidades Relacionadas
+### Create Appointment
+- **Method**: `POST`
+- **Path**: `/appointments`
+- **Authentication**: Required (JWT Bearer Token)
+- **Body**: `CreateAppointmentDto`
+- **Response**: `AppointmentOutput` (201 Created)
+- **Description**: Creates a new appointment for the authenticated CLIENTE user. Validates store, service, time availability, and working hours.
 
-- **UserEntity**: Representa usuários do sistema (CLIENTE ou PRESTADOR)
-- **StoreEntity**: Representa lojas com:
-  - `workingHours`: Array com horários de funcionamento por dia da semana
-  - `appointmentInterval`: Intervalo mínimo entre agendamentos (5, 10, 15 ou 30 minutos)
-- **ServiceEntity**: Representa serviços oferecidos pelas lojas com:
-  - `durationMinutes`: Duração do serviço em minutos
-  - `storeId`: Relação com a loja
+### List User Appointments
+- **Method**: `GET`
+- **Path**: `/appointments`
+- **Authentication**: Required (JWT Bearer Token)
+- **Response**: `AppointmentOutput[]` (200 OK)
+- **Description**: Retrieves all appointments for the authenticated user, ordered by appointment date.
 
-### Requisitos Funcionais
+### Get Appointment by ID
+- **Method**: `GET`
+- **Path**: `/appointments/:id`
+- **Authentication**: Required (JWT Bearer Token)
+- **Response**: `AppointmentOutput` (200 OK)
+- **Description**: Retrieves a specific appointment. Users can view their own appointments, and PRESTADOR users can view appointments from their own store.
+- **Error**: 
+  - 404 Not Found if appointment doesn't exist
+  - 403 Forbidden if user doesn't have permission to view the appointment
 
-1. **Autenticação**: Apenas usuários autenticados (tipo CLIENTE) podem criar agendamentos
-2. **Seleção**: Cliente deve selecionar:
-   - Loja (storeId)
-   - Serviço (serviceId)
-   - Horário (calculado automaticamente ou fornecido pelo cliente)
-3. **Cálculo de Horários**: Sistema deve calcular horários disponíveis considerando:
-   - Horário de funcionamento da loja (`workingHours`)
-   - Intervalo de agendamento da loja (`appointmentInterval`)
-   - Duração do serviço (`durationMinutes`)
-   - Agendamentos já existentes (evitar conflitos)
+### Get Store Appointments
+- **Method**: `GET`
+- **Path**: `/appointments/store/:storeId`
+- **Authentication**: Required (JWT Bearer Token)
+- **Response**: `AppointmentOutput[]` (200 OK)
+- **Description**: Retrieves all appointments for a specific store. Only the store owner (PRESTADOR) can access this endpoint.
+- **Error**: 
+  - 404 Not Found if store doesn't exist
+  - 403 Forbidden if user is not the store owner
 
-### Regras de Negócio
+### Get Available Time Slots
+- **Method**: `GET`
+- **Path**: `/appointments/available-slots/:storeId/:serviceId`
+- **Query Parameters**: `date` (YYYY-MM-DD format, required)
+- **Response**: `AvailableTimeSlot[]` (200 OK)
+- **Description**: Calculates and returns available time slots for a specific store and service on a given date. This endpoint is public (no authentication required).
+- **Example**: `/appointments/available-slots/store-uuid/service-uuid?date=2024-12-25`
 
-1. Cliente só pode agendar para si mesmo
-2. Horário deve estar dentro do horário de funcionamento da loja
-3. Não pode haver sobreposição de agendamentos para a mesma loja
-4. Deve respeitar o `appointmentInterval` da loja entre agendamentos
-5. Deve considerar a duração do serviço ao verificar disponibilidade
-6. Agendamentos passados não podem ser criados ou modificados
+### Update Appointment
+- **Method**: `PUT`
+- **Path**: `/appointments/:id`
+- **Authentication**: Required (JWT Bearer Token)
+- **Body**: `UpdateAppointmentDto`
+- **Response**: `AppointmentOutput` (200 OK)
+- **Description**: Updates an appointment. Only the appointment owner can update it. Validates new time if provided.
+- **Error**: 
+  - 404 Not Found if appointment doesn't exist
+  - 403 Forbidden if user is not the appointment owner
+  - 400 Bad Request if appointment is cancelled or completed
+  - 409 Conflict if new time conflicts with existing appointments
 
-## Estrutura do Módulo
+### Cancel Appointment
+- **Method**: `POST`
+- **Path**: `/appointments/:id/cancel`
+- **Authentication**: Required (JWT Bearer Token)
+- **Response**: `AppointmentOutput` (200 OK)
+- **Description**: Cancels an appointment. Only the appointment owner can cancel it.
+- **Error**: 
+  - 404 Not Found if appointment doesn't exist
+  - 403 Forbidden if user is not the appointment owner
+  - 400 Bad Request if appointment is already cancelled or completed
 
-```
-src/appointment/
-├── models/
-│   ├── dto/
-│   │   ├── create-appointment.dto.ts
-│   │   └── update-appointment.dto.ts
-│   ├── types/
-│   │   └── appointment.types.ts
-│   └── appointment.entity.ts
-├── appointment.controller.ts
-├── appointment.controller.spec.ts
-├── appointment.service.ts
-├── appointment.service.spec.ts
-├── appointment.repository.ts
-├── appointment.repository.spec.ts
-├── appointment.module.ts
-├── appointment.http
-└── README.md
-```
+### Delete Appointment
+- **Method**: `DELETE`
+- **Path**: `/appointments/:id`
+- **Authentication**: Required (JWT Bearer Token)
+- **Response**: 204 No Content
+- **Description**: Permanently deletes an appointment. Only the appointment owner can delete it.
+- **Error**: 
+  - 404 Not Found if appointment doesn't exist
+  - 403 Forbidden if user is not the appointment owner
 
-## Tarefas de Implementação
+### Test Endpoint
+- **Method**: `GET`
+- **Path**: `/appointments/admin/test`
+- **Response**: `{ message: string }` (200 OK)
 
-### 1. Modelos e Tipos
+## Business Rules
 
-#### 1.1. Entity (`appointment.entity.ts`)
-- [ ] Criar entidade `AppointmentEntity` com:
-  - `id`: UUID (Primary Key)
-  - `userId`: UUID (Foreign Key para UserEntity)
-  - `storeId`: UUID (Foreign Key para StoreEntity)
-  - `serviceId`: UUID (Foreign Key para ServiceEntity)
-  - `appointmentDate`: DateTime (data e hora do agendamento)
-  - `status`: Enum (PENDING, CONFIRMED, COMPLETED, CANCELLED)
-  - `notes`: string opcional (observações do cliente)
-  - `createdAt`: DateTime
-  - `updatedAt`: DateTime
-  - Relações ManyToOne com User, Store e Service
+1. **User Type Restriction**: 
+   - Only users of type `CLIENTE` can create appointments.
+   - Attempting to create an appointment as a PRESTADOR user results in a 400 Bad Request error.
 
-#### 1.2. Types (`appointment.types.ts`)
-- [ ] Criar enum `AppointmentStatus`:
-  - `PENDING`: Agendamento pendente
-  - `CONFIRMED`: Agendamento confirmado
-  - `COMPLETED`: Serviço realizado
-  - `CANCELLED`: Agendamento cancelado
-- [ ] Criar interface `AppointmentOutput` com todos os campos da entidade
-- [ ] Criar interface `AvailableTimeSlot`:
-  - `startTime`: string (HH:mm)
-  - `endTime`: string (HH:mm)
-  - `date`: string (YYYY-MM-DD)
+2. **Store and Service Validation**: 
+   - The store must exist.
+   - The service must exist and belong to the specified store.
+   - Attempting to use a service from a different store results in a 400 Bad Request error.
 
-#### 1.3. DTOs
+3. **Time Validation**: 
+   - Appointment date must be in the future.
+   - Appointment time must be within the store's working hours for that day of the week.
+   - Appointment time must not conflict with existing appointments (considering service duration).
+   - Cancelled appointments are not considered when checking for conflicts.
 
-##### 1.3.1. Create Appointment DTO (`create-appointment.dto.ts`)
-- [ ] `storeId`: UUID (obrigatório, deve existir)
-- [ ] `serviceId`: UUID (obrigatório, deve existir e pertencer à loja)
-- [ ] `appointmentDate`: DateTime (obrigatório, formato ISO)
-- [ ] `notes`: string (opcional, máximo 500 caracteres)
-- [ ] Validações:
-  - `storeId` deve ser um UUID válido
-  - `serviceId` deve ser um UUID válido
-  - `appointmentDate` deve ser uma data futura
-  - `appointmentDate` deve estar dentro do horário de funcionamento
-  - `appointmentDate` não deve conflitar com outros agendamentos
+4. **Ownership**: 
+   - Clients can only create appointments for themselves.
+   - Clients can only view, update, cancel, or delete their own appointments.
+   - PRESTADOR users can view appointments from their own store only.
 
-##### 1.3.2. Update Appointment DTO (`update-appointment.dto.ts`)
-- [ ] `appointmentDate`: DateTime (opcional)
-- [ ] `status`: AppointmentStatus (opcional)
-- [ ] `notes`: string (opcional)
-- [ ] Validações:
-  - Se `appointmentDate` for fornecido, deve ser futura
-  - Apenas cliente pode atualizar seus próprios agendamentos
-  - Status só pode ser alterado para valores válidos
+5. **Status Management**: 
+   - New appointments are created with status `PENDING`.
+   - Cancelled appointments cannot be updated or cancelled again.
+   - Completed appointments cannot be cancelled or updated.
 
-### 2. Repository (`appointment.repository.ts`)
+6. **Conflict Detection**: 
+   - The system checks for overlapping appointments considering:
+     - The start time of the new appointment
+     - The end time (start time + service duration)
+     - Existing appointments' start and end times
+   - Appointments with status `CANCELLED` are ignored in conflict checks.
 
-- [ ] `create(input: CreateAppointmentDto, userId: string)`: Criar agendamento
-- [ ] `findById(id: string)`: Buscar por ID com relações
-- [ ] `findByUserId(userId: string)`: Buscar agendamentos do usuário
-- [ ] `findByStoreId(storeId: string)`: Buscar agendamentos da loja
-- [ ] `findByServiceId(serviceId: string)`: Buscar agendamentos do serviço
-- [ ] `findByDateRange(storeId: string, startDate: Date, endDate: Date)`: Buscar agendamentos em um período
-- [ ] `findConflictingAppointments(storeId: string, startTime: Date, endTime: Date, excludeId?: string)`: Buscar conflitos
-- [ ] `update(id: string, input: UpdateAppointmentDto)`: Atualizar agendamento
-- [ ] `delete(id: string)`: Deletar agendamento
+## Data Validation
 
-### 3. Service (`appointment.service.ts`)
+### CreateAppointmentDto
 
-#### 3.1. Métodos CRUD
-- [ ] `create(input: CreateAppointmentDto, userId: string)`: Criar agendamento
-  - Validar que usuário é do tipo CLIENTE
-  - Validar que loja existe
-  - Validar que serviço existe e pertence à loja
-  - Validar horário disponível
-  - Criar agendamento com status PENDING
-- [ ] `findAll()`: Listar todos os agendamentos (opcional, pode ser removido se não necessário)
-- [ ] `findById(id: string)`: Buscar por ID
-- [ ] `findByUserId(userId: string)`: Buscar agendamentos do usuário
-- [ ] `findByStoreId(storeId: string)`: Buscar agendamentos da loja
-- [ ] `findAvailableTimeSlots(storeId: string, serviceId: string, date: string)`: Calcular horários disponíveis
-- [ ] `update(id: string, input: UpdateAppointmentDto, userId: string)`: Atualizar agendamento
-  - Validar que usuário é dono do agendamento
-  - Validar novo horário se fornecido
-- [ ] `cancel(id: string, userId: string)`: Cancelar agendamento
-- [ ] `delete(id: string, userId: string)`: Deletar agendamento
+- **storeId**: 
+  - Required
+  - Type: string (UUID)
+  - Must reference an existing store
 
-#### 3.2. Métodos Auxiliares (Privados)
-- [ ] `validateAppointmentTime(storeId: string, serviceId: string, appointmentDate: Date)`: Validar horário
-  - Verificar se está dentro do horário de funcionamento
-  - Verificar se não conflita com outros agendamentos
-  - Considerar `appointmentInterval` e `durationMinutes`
-- [ ] `calculateAvailableTimeSlots(store: StoreEntity, service: ServiceEntity, date: Date, existingAppointments: AppointmentEntity[])`: Calcular slots disponíveis
-  - Gerar slots baseados em `workingHours` do dia
-  - Aplicar `appointmentInterval`
-  - Considerar `durationMinutes` do serviço
-  - Remover slots conflitantes
-- [ ] `isWithinWorkingHours(workingHours: WorkingHours[], appointmentDate: Date)`: Verificar se está no horário de funcionamento
-- [ ] `hasConflict(startTime: Date, endTime: Date, existingAppointments: AppointmentEntity[])`: Verificar conflitos
-- [ ] `mapToOutput(appointment: AppointmentEntity)`: Mapear entidade para output
+- **serviceId**: 
+  - Required
+  - Type: string (UUID)
+  - Must reference an existing service that belongs to the specified store
 
-### 4. Controller (`appointment.controller.ts`)
+- **appointmentDate**: 
+  - Required
+  - Type: string (ISO 8601 date-time format)
+  - Must be a future date and time
+  - Must be within store's working hours for that day
+  - Must not conflict with existing appointments
 
-- [ ] `POST /appointments`: Criar agendamento
-  - Usar `@UseGuards(JwtAuthGuard)`
-  - Usar `@CurrentUser()` para pegar userId
-  - Retornar `AppointmentOutput`
-- [ ] `GET /appointments`: Listar agendamentos do usuário autenticado
-  - Usar `@UseGuards(JwtAuthGuard)`
-  - Usar `@CurrentUser()` para filtrar
-- [ ] `GET /appointments/:id`: Buscar agendamento por ID
-  - Usar `@UseGuards(JwtAuthGuard)`
-  - Validar que usuário é dono ou prestador da loja
-- [ ] `GET /appointments/store/:storeId`: Buscar agendamentos da loja
-  - Usar `@UseGuards(JwtAuthGuard)`
-  - Validar que usuário é dono da loja
-- [ ] `GET /appointments/available-slots/:storeId/:serviceId`: Buscar horários disponíveis
-  - Query param: `date` (YYYY-MM-DD)
-  - Pode ser público ou autenticado
-- [ ] `PUT /appointments/:id`: Atualizar agendamento
-  - Usar `@UseGuards(JwtAuthGuard)`
-  - Validar que usuário é dono
-- [ ] `DELETE /appointments/:id`: Cancelar/Deletar agendamento
-  - Usar `@UseGuards(JwtAuthGuard)`
-  - Validar que usuário é dono
-- [ ] `GET /appointments/admin/test`: Endpoint de teste
+- **notes**: 
+  - Optional
+  - Type: string
+  - Maximum length: 500 characters
 
-### 5. Module (`appointment.module.ts`)
+### UpdateAppointmentDto
 
-- [ ] Importar `TypeOrmModule.forFeature([AppointmentEntity])`
-- [ ] Importar `StoreModule` (para acessar StoreRepository)
-- [ ] Importar `ServiceModule` (para acessar ServiceRepository)
-- [ ] Importar `UserModule` (para acessar UserRepository, se necessário)
-- [ ] Registrar `AppointmentController`
-- [ ] Registrar `AppointmentService` e `AppointmentRepository`
-- [ ] Exportar `AppointmentService` e `AppointmentRepository` (se necessário)
+All fields are optional. Same validation rules apply when fields are provided.
 
-### 6. Integração com AppModule
+- **appointmentDate**: 
+  - Optional
+  - Type: string (ISO 8601 date-time format)
+  - If provided, must be a future date and time
+  - Must be within store's working hours
+  - Must not conflict with existing appointments (excluding the current appointment)
 
-- [ ] Adicionar `AppointmentModule` aos imports de `app.module.ts`
+- **status**: 
+  - Optional
+  - Type: `AppointmentStatus` enum
+  - Valid values: `pending`, `confirmed`, `completed`, `cancelled`
 
-### 7. Migração
+- **notes**: 
+  - Optional
+  - Type: string
+  - Maximum length: 500 characters
 
-- [ ] Criar migration para tabela `appointments`:
-  - `id`: UUID, Primary Key
-  - `userId`: UUID, Foreign Key para `users.id`
-  - `storeId`: UUID, Foreign Key para `stores.id`
-  - `serviceId`: UUID, Foreign Key para `services.id`
-  - `appointmentDate`: DateTime
-  - `status`: Enum (PENDING, CONFIRMED, COMPLETED, CANCELLED)
-  - `notes`: VARCHAR(500), nullable
-  - `createdAt`: DateTime
-  - `updatedAt`: DateTime
-  - Índices:
-    - `idx_appointments_user_id` em `userId`
-    - `idx_appointments_store_id` em `storeId`
-    - `idx_appointments_service_id` em `serviceId`
-    - `idx_appointments_date` em `appointmentDate`
-    - `idx_appointments_store_date` em `storeId` e `appointmentDate` (composto)
+## Appointment Output Structure
 
-### 8. Testes
-
-#### 8.1. Repository Tests (`appointment.repository.spec.ts`)
-- [ ] Testar `create`
-- [ ] Testar `findById`
-- [ ] Testar `findByUserId`
-- [ ] Testar `findByStoreId`
-- [ ] Testar `findByServiceId`
-- [ ] Testar `findByDateRange`
-- [ ] Testar `findConflictingAppointments`
-- [ ] Testar `update`
-- [ ] Testar `delete`
-
-#### 8.2. Service Tests (`appointment.service.spec.ts`)
-- [ ] Testar `create` com sucesso
-- [ ] Testar `create` com usuário não CLIENTE
-- [ ] Testar `create` com loja inexistente
-- [ ] Testar `create` com serviço inexistente
-- [ ] Testar `create` com serviço de outra loja
-- [ ] Testar `create` com horário fora do funcionamento
-- [ ] Testar `create` com horário conflitante
-- [ ] Testar `findById`
-- [ ] Testar `findByUserId`
-- [ ] Testar `findByStoreId`
-- [ ] Testar `findAvailableTimeSlots`
-- [ ] Testar `update`
-- [ ] Testar `cancel`
-- [ ] Testar `delete`
-- [ ] Testar validações de horário
-
-#### 8.3. Controller Tests (`appointment.controller.spec.ts`)
-- [ ] Testar `POST /appointments`
-- [ ] Testar `GET /appointments`
-- [ ] Testar `GET /appointments/:id`
-- [ ] Testar `GET /appointments/store/:storeId`
-- [ ] Testar `GET /appointments/available-slots/:storeId/:serviceId`
-- [ ] Testar `PUT /appointments/:id`
-- [ ] Testar `DELETE /appointments/:id`
-- [ ] Testar autenticação em todos os endpoints protegidos
-- [ ] Testar autorização (usuário só pode ver/editar seus próprios agendamentos)
-
-### 9. Documentação HTTP (`appointment.http`)
-
-- [ ] Criar arquivo com exemplos de requisições:
-  - POST criar agendamento
-  - GET listar agendamentos do usuário
-  - GET buscar por ID
-  - GET buscar agendamentos da loja
-  - GET buscar horários disponíveis
-  - PUT atualizar agendamento
-  - DELETE cancelar agendamento
-
-### 10. README (`README.md`)
-
-- [ ] Documentar endpoints
-- [ ] Documentar regras de negócio
-- [ ] Documentar exemplos de uso
-- [ ] Documentar cálculos de horários disponíveis
-
-## Algoritmo de Cálculo de Horários Disponíveis
-
-### Pseudocódigo
-
-```
-1. Buscar loja por storeId
-2. Buscar serviço por serviceId
-3. Verificar se serviço pertence à loja
-4. Buscar workingHours do dia da semana da data solicitada
-5. Se loja não está aberta nesse dia, retornar array vazio
-6. Buscar agendamentos existentes para a loja na data solicitada
-7. Gerar slots de tempo:
-   a. Começar do openTime
-   b. Criar slot de durationMinutes
-   c. Avançar appointmentInterval minutos
-   d. Repetir até closeTime
-8. Para cada slot gerado:
-   a. Verificar se não conflita com agendamentos existentes
-   b. Verificar se está dentro do horário de funcionamento
-   c. Se válido, adicionar à lista de disponíveis
-9. Retornar lista de slots disponíveis
+```typescript
+{
+  id: string;                      // UUID
+  userId: string;                   // UUID of the CLIENTE user
+  storeId: string;                   // UUID of the store
+  serviceId: string;                // UUID of the service
+  appointmentDate: Date;            // Date and time of the appointment
+  status: AppointmentStatus;         // pending | confirmed | completed | cancelled
+  notes?: string;                    // Optional notes (max 500 chars)
+  createdAt: Date;
+  updatedAt: Date;
+}
 ```
 
-## Considerações de Implementação
+## Available Time Slot Structure
 
-1. **Timezone**: Considerar timezone do servidor ou adicionar suporte a timezone
-2. **Performance**: Índices compostos na tabela para otimizar consultas por loja e data
-3. **Validação de Conflitos**: Considerar margem de segurança entre agendamentos (ex: 5 minutos entre fim de um e início de outro)
-4. **Status de Agendamento**: Implementar fluxo de estados (PENDING → CONFIRMED → COMPLETED)
-5. **Notificações**: Considerar futura implementação de notificações (email/SMS) para confirmação e lembretes
-6. **Histórico**: Manter histórico de alterações (pode ser implementado futuramente com auditoria)
+```typescript
+{
+  startTime: string;                 // HH:mm format (e.g., "09:00")
+  endTime: string;                   // HH:mm format (e.g., "10:30")
+  date: string;                      // YYYY-MM-DD format (e.g., "2024-12-25")
+}
+```
 
-## Dependências
+## Appointment Status
 
-- `@nestjs/common`
-- `@nestjs/typeorm`
-- `typeorm`
-- `class-validator`
-- `class-transformer`
-- Módulos: `StoreModule`, `ServiceModule`, `UserModule`, `CoreModule`
+- **PENDING**: Appointment is pending confirmation (default status for new appointments)
+- **CONFIRMED**: Appointment has been confirmed
+- **COMPLETED**: Service has been completed
+- **CANCELLED**: Appointment has been cancelled
 
-## Ordem de Implementação Sugerida
+## Authentication
 
-1. Types e Entity
-2. Repository e testes do Repository
-3. Service e testes do Service (focar no cálculo de horários)
-4. DTOs
-5. Controller e testes do Controller
-6. Module e integração
-7. Migração
-8. Documentação HTTP
-9. README final
+The module uses JWT authentication for protected endpoints:
 
+1. **Token Extraction**: The `JwtAuthGuard` extracts the Bearer token from the `Authorization` header.
+2. **User Identification**: The `@CurrentUser()` decorator extracts the user ID from the decoded token.
+3. **Authorization**: The service validates user permissions based on user type and ownership.
+
+### Token Format
+
+```
+Authorization: Bearer <jwt-token>
+```
+
+The JWT token should contain the user ID in the `sub` claim (as generated by the Auth module).
+
+## Available Time Slots Calculation
+
+The system calculates available time slots based on:
+
+1. **Store Working Hours**: The store's working hours for the requested day of the week
+2. **Appointment Interval**: The store's `appointmentInterval` (5, 10, 15, or 30 minutes)
+3. **Service Duration**: The service's `durationMinutes`
+4. **Existing Appointments**: All non-cancelled appointments for that store on that date
+
+### Algorithm
+
+1. Retrieve the store and service
+2. Verify the service belongs to the store
+3. Get working hours for the requested day of the week
+4. If the store is closed that day, return empty array
+5. Retrieve all existing appointments for that store on that date
+6. Generate time slots:
+   - Start from the store's opening time
+   - Create slots of `durationMinutes` length
+   - Advance by `appointmentInterval` minutes
+   - Continue until closing time
+7. For each generated slot:
+   - Check if it conflicts with existing appointments (considering their duration)
+   - Check if it fits within working hours
+   - If valid, add to available slots
+8. Return the list of available time slots
+
+### Example Calculation
+
+**Store Configuration:**
+- Working hours: Monday 09:00 - 18:00
+- Appointment interval: 30 minutes
+
+**Service:**
+- Duration: 60 minutes
+
+**Existing Appointments:**
+- 10:00 - 11:00 (60 min service)
+- 14:00 - 15:00 (60 min service)
+
+**Available Slots Generated:**
+- 09:00 - 10:00 ✓ (no conflict)
+- 09:30 - 10:30 ✗ (conflicts with 10:00 appointment)
+- 10:00 - 11:00 ✗ (conflicts with existing)
+- 11:00 - 12:00 ✓ (no conflict)
+- 11:30 - 12:30 ✓ (no conflict)
+- ... (continues until 17:00, considering conflicts)
+- 15:00 - 16:00 ✓ (no conflict)
+- 15:30 - 16:30 ✓ (no conflict)
+- 16:00 - 17:00 ✓ (no conflict)
+- 16:30 - 17:30 ✓ (no conflict)
+- 17:00 - 18:00 ✓ (no conflict)
+
+## Error Responses
+
+### 400 Bad Request
+- User is not a CLIENTE type (when creating)
+- Store not found
+- Service not found
+- Service does not belong to the specified store
+- Appointment date is in the past
+- Appointment time is outside store working hours
+- Appointment time conflicts with existing appointments
+- Invalid data format
+- Validation errors
+
+### 401 Unauthorized
+- Missing or invalid JWT token
+- Token not provided in Authorization header
+
+### 403 Forbidden
+- User attempting to view/update/delete an appointment they don't own
+- PRESTADOR user attempting to view appointments from another user's store
+- User attempting to update a cancelled appointment
+- User attempting to cancel a completed appointment
+
+### 404 Not Found
+- Appointment not found
+- Store not found
+- Service not found
+- User not found
+
+### 409 Conflict
+- Appointment time conflicts with existing appointments
+
+## Database Relations
+
+- **UserEntity** (Many-to-One): Each appointment belongs to one CLIENTE user
+  - Foreign key: `userId` references `users.id`
+  
+- **StoreEntity** (Many-to-One): Each appointment belongs to one store
+  - Foreign key: `storeId` references `stores.id`
+  
+- **ServiceEntity** (Many-to-One): Each appointment is for one service
+  - Foreign key: `serviceId` references `services.id`
+
+## Dependencies
+
+- `AppointmentRepository`: Handles database operations
+- `StoreRepository`: Validates store existence and retrieves store information
+- `ServiceRepository`: Validates service existence and retrieves service information
+- `UserRepository`: Validates user type and retrieves user information
+- `JwtAuthGuard`: Validates JWT tokens and extracts user information
+- `CurrentUser` decorator: Extracts user ID from request
+- TypeORM: For entity management and database access
+
+## Module Exports
+
+- `AppointmentService`: Business logic service
+- `AppointmentRepository`: Database repository
+
+## Example Usage Flow
+
+1. **Get Available Slots**: Client requests available time slots for a store and service
+   ```
+   GET /appointments/available-slots/store-uuid/service-uuid?date=2024-12-25
+   ```
+
+2. **Create Appointment**: Client creates an appointment
+   ```
+   POST /appointments
+   Authorization: Bearer <token>
+   {
+     "storeId": "store-uuid",
+     "serviceId": "service-uuid",
+     "appointmentDate": "2024-12-25T10:00:00.000Z",
+     "notes": "Please arrive 10 minutes early"
+   }
+   ```
+
+3. **List Appointments**: Client views their appointments
+   ```
+   GET /appointments
+   Authorization: Bearer <token>
+   ```
+
+4. **Update Appointment**: Client updates appointment time or notes
+   ```
+   PUT /appointments/appointment-uuid
+   Authorization: Bearer <token>
+   {
+     "appointmentDate": "2024-12-25T14:00:00.000Z",
+     "notes": "Updated notes"
+   }
+   ```
+
+5. **Cancel Appointment**: Client cancels an appointment
+   ```
+   POST /appointments/appointment-uuid/cancel
+   Authorization: Bearer <token>
+   ```
+
+6. **Store Owner View**: PRESTADOR views appointments for their store
+   ```
+   GET /appointments/store/store-uuid
+   Authorization: Bearer <token>
+   ```
+
+## Notes
+
+- Appointment dates are stored as datetime in the database
+- Status is stored as varchar(20) with enum values
+- Notes are optional and limited to 500 characters
+- The system automatically validates time conflicts considering service duration
+- Cancelled appointments are excluded from conflict checks
+- The available time slots endpoint is public (no authentication required)
+- Day of week mapping: 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
+- Time slots are calculated in real-time based on current appointments
+- The appointment interval determines the granularity of available slots (e.g., 30 minutes means slots start every 30 minutes)
