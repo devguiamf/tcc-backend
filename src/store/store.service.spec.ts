@@ -18,6 +18,7 @@ import { UserEntity } from '../user/models/user.entity';
 import { CreateStoreDto } from './models/dto/create-store.dto';
 import { UpdateStoreDto } from './models/dto/update-store.dto';
 import { UserType } from '../user/models/types/user.types';
+import { AppointmentInterval } from './models/types/store.types';
 import * as bcrypt from 'bcrypt';
 
 describe('StoreService', () => {
@@ -106,15 +107,22 @@ describe('StoreService', () => {
     };
   };
 
+  const createValidStoreDto = (overrides?: any): CreateStoreDto => {
+    return {
+      name: 'Test Store',
+      userId: testUser.id,
+      workingHours: createValidWorkingHours(),
+      location: createValidLocation(),
+      appointmentInterval: AppointmentInterval.THIRTY_MINUTES,
+      ...overrides,
+    };
+  };
+
   describe('create', () => {
     it('should create a store successfully', async () => {
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
+      const inputDto = createValidStoreDto({
         imageUrl: 'https://example.com/image.jpg',
-      };
+      });
 
       const result = await service.create(inputDto);
 
@@ -124,18 +132,16 @@ describe('StoreService', () => {
       expect(result.userId).toBe(inputDto.userId);
       expect(result.workingHours).toEqual(inputDto.workingHours);
       expect(result.location).toEqual(inputDto.location);
+      expect(result.appointmentInterval).toBe(inputDto.appointmentInterval);
       expect(result.imageUrl).toBe(inputDto.imageUrl);
       expect(result.createdAt).toBeDefined();
       expect(result.updatedAt).toBeDefined();
     });
 
     it('should create a store without optional imageUrl', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Store Without Image',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const result = await service.create(inputDto);
 
@@ -145,24 +151,18 @@ describe('StoreService', () => {
 
     it('should throw NotFoundException when user does not exist', async () => {
       const fakeUserId = '00000000-0000-0000-0000-000000000000';
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
+      const inputDto = createValidStoreDto({
         userId: fakeUserId,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       await expect(service.create(inputDto)).rejects.toThrow(NotFoundException);
       await expect(service.create(inputDto)).rejects.toThrow('User not found');
     });
 
     it('should throw BadRequestException when user is not PRESTADOR', async () => {
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
+      const inputDto = createValidStoreDto({
         userId: clienteUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       await expect(service.create(inputDto)).rejects.toThrow(BadRequestException);
       await expect(service.create(inputDto)).rejects.toThrow(
@@ -171,21 +171,15 @@ describe('StoreService', () => {
     });
 
     it('should throw ConflictException when user already has a store', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'First Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       await service.create(inputDto);
 
-      const duplicateDto: CreateStoreDto = {
+      const duplicateDto = createValidStoreDto({
         name: 'Second Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       await expect(service.create(duplicateDto)).rejects.toThrow(ConflictException);
       await expect(service.create(duplicateDto)).rejects.toThrow('User already has a store');
@@ -197,12 +191,9 @@ describe('StoreService', () => {
         { dayOfWeek: 1, isOpen: true, openTime: '09:00', closeTime: '18:00' },
       ];
 
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
+      const inputDto = createValidStoreDto({
         workingHours: invalidWorkingHours,
-        location: createValidLocation(),
-      };
+      });
 
       await expect(service.create(inputDto)).rejects.toThrow(BadRequestException);
       await expect(service.create(inputDto)).rejects.toThrow(
@@ -221,12 +212,9 @@ describe('StoreService', () => {
         { dayOfWeek: 5, isOpen: true, openTime: '09:00', closeTime: '18:00' },
       ];
 
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
+      const inputDto = createValidStoreDto({
         workingHours: invalidWorkingHours,
-        location: createValidLocation(),
-      };
+      });
 
       await expect(service.create(inputDto)).rejects.toThrow(BadRequestException);
       await expect(service.create(inputDto)).rejects.toThrow(
@@ -245,12 +233,9 @@ describe('StoreService', () => {
         { dayOfWeek: 6, isOpen: false },
       ];
 
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
+      const inputDto = createValidStoreDto({
         workingHours: invalidWorkingHours,
-        location: createValidLocation(),
-      };
+      });
 
       await expect(service.create(inputDto)).rejects.toThrow(BadRequestException);
       await expect(service.create(inputDto)).rejects.toThrow(
@@ -269,12 +254,9 @@ describe('StoreService', () => {
         { dayOfWeek: 6, isOpen: false },
       ];
 
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
+      const inputDto = createValidStoreDto({
         workingHours: invalidWorkingHours,
-        location: createValidLocation(),
-      };
+      });
 
       await expect(service.create(inputDto)).rejects.toThrow(BadRequestException);
       await expect(service.create(inputDto)).rejects.toThrow(
@@ -293,12 +275,10 @@ describe('StoreService', () => {
         { dayOfWeek: 6, isOpen: false },
       ];
 
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Closed Store',
-        userId: testUser.id,
         workingHours: validWorkingHours,
-        location: createValidLocation(),
-      };
+      });
 
       const result = await service.create(inputDto);
 
@@ -326,18 +306,13 @@ describe('StoreService', () => {
         cpf: '987.654.321-00',
       });
 
-      const inputDto1: CreateStoreDto = {
+      const inputDto1 = createValidStoreDto({
         name: 'Store One',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
-      const inputDto2: CreateStoreDto = {
+      });
+      const inputDto2 = createValidStoreDto({
         name: 'Store Two',
         userId: secondUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       await service.create(inputDto1);
       await service.create(inputDto2);
@@ -351,6 +326,7 @@ describe('StoreService', () => {
         expect(store).toHaveProperty('userId');
         expect(store).toHaveProperty('workingHours');
         expect(store).toHaveProperty('location');
+        expect(store).toHaveProperty('appointmentInterval');
         expect(store).toHaveProperty('createdAt');
         expect(store).toHaveProperty('updatedAt');
       });
@@ -366,12 +342,9 @@ describe('StoreService', () => {
     });
 
     it('should return store by id', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Find Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await service.create(inputDto);
       const result = await service.findById(createdStore.id);
@@ -392,12 +365,9 @@ describe('StoreService', () => {
     });
 
     it('should return store by userId', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'User Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       await service.create(inputDto);
       const result = await service.findByUserId(testUser.id);
@@ -420,12 +390,9 @@ describe('StoreService', () => {
     });
 
     it('should update store name', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Original Name',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await service.create(inputDto);
       const updateDto: UpdateStoreDto = {
@@ -440,12 +407,9 @@ describe('StoreService', () => {
     });
 
     it('should update multiple fields', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Original Name',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await service.create(inputDto);
       const newWorkingHours = createValidWorkingHours();
@@ -467,12 +431,7 @@ describe('StoreService', () => {
     });
 
     it('should throw NotFoundException when updating userId to non-existent user', async () => {
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      const inputDto = createValidStoreDto();
 
       const createdStore = await service.create(inputDto);
       const fakeUserId = '00000000-0000-0000-0000-000000000000';
@@ -485,12 +444,7 @@ describe('StoreService', () => {
     });
 
     it('should throw BadRequestException when updating userId to CLIENTE user', async () => {
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      const inputDto = createValidStoreDto();
 
       const createdStore = await service.create(inputDto);
       const updateDto: UpdateStoreDto = {
@@ -513,18 +467,13 @@ describe('StoreService', () => {
         cpf: '987.654.321-00',
       });
 
-      const inputDto1: CreateStoreDto = {
+      const inputDto1 = createValidStoreDto({
         name: 'First Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
-      const inputDto2: CreateStoreDto = {
+      });
+      const inputDto2 = createValidStoreDto({
         name: 'Second Store',
         userId: secondUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore1 = await service.create(inputDto1);
       await service.create(inputDto2);
@@ -540,12 +489,7 @@ describe('StoreService', () => {
     });
 
     it('should allow updating userId to same user', async () => {
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      const inputDto = createValidStoreDto();
 
       const createdStore = await service.create(inputDto);
       const updateDto: UpdateStoreDto = {
@@ -561,13 +505,10 @@ describe('StoreService', () => {
     });
 
     it('should update imageUrl to undefined', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Image Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
         imageUrl: 'https://example.com/old-image.jpg',
-      };
+      });
 
       const createdStore = await service.create(inputDto);
       const updateDto: UpdateStoreDto = {
@@ -590,12 +531,9 @@ describe('StoreService', () => {
     });
 
     it('should delete store successfully', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Delete Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await service.create(inputDto);
       await service.delete(createdStore.id);
@@ -606,13 +544,10 @@ describe('StoreService', () => {
 
   describe('mapToOutput', () => {
     it('should map store entity to output correctly with all fields', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Complete Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
         imageUrl: 'https://example.com/image.jpg',
-      };
+      });
 
       const result = await service.create(inputDto);
 
@@ -621,18 +556,16 @@ describe('StoreService', () => {
       expect(result).toHaveProperty('userId');
       expect(result).toHaveProperty('workingHours');
       expect(result).toHaveProperty('location');
+      expect(result).toHaveProperty('appointmentInterval');
       expect(result).toHaveProperty('imageUrl');
       expect(result).toHaveProperty('createdAt');
       expect(result).toHaveProperty('updatedAt');
     });
 
     it('should map imageUrl as undefined when null', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'No Image Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const result = await service.create(inputDto);
 

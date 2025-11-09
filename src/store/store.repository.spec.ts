@@ -11,6 +11,7 @@ import { UserEntity } from '../user/models/user.entity';
 import { CreateStoreDto } from './models/dto/create-store.dto';
 import { UpdateStoreDto } from './models/dto/update-store.dto';
 import { UserType } from '../user/models/types/user.types';
+import { AppointmentInterval } from './models/types/store.types';
 import * as bcrypt from 'bcrypt';
 
 describe('StoreRepository', () => {
@@ -87,15 +88,22 @@ describe('StoreRepository', () => {
     };
   };
 
+  const createValidStoreDto = (overrides?: any): CreateStoreDto => {
+    return {
+      name: 'Test Store',
+      userId: testUser.id,
+      workingHours: createValidWorkingHours(),
+      location: createValidLocation(),
+      appointmentInterval: AppointmentInterval.THIRTY_MINUTES,
+      ...overrides,
+    };
+  };
+
   describe('create', () => {
     it('should create a store with all fields', async () => {
-      const inputDto: CreateStoreDto = {
-        name: 'Test Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
+      const inputDto = createValidStoreDto({
         imageUrl: 'https://example.com/image.jpg',
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
 
@@ -105,18 +113,16 @@ describe('StoreRepository', () => {
       expect(createdStore.userId).toBe(inputDto.userId);
       expect(createdStore.workingHours).toEqual(inputDto.workingHours);
       expect(createdStore.location).toEqual(inputDto.location);
+      expect(createdStore.appointmentInterval).toBe(inputDto.appointmentInterval);
       expect(createdStore.imageUrl).toBe(inputDto.imageUrl);
       expect(createdStore.createdAt).toBeDefined();
       expect(createdStore.updatedAt).toBeDefined();
     });
 
     it('should create a store without optional imageUrl', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Store Without Image',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
 
@@ -127,10 +133,8 @@ describe('StoreRepository', () => {
     });
 
     it('should create a store with minimal location data', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Minimal Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
         location: {
           street: 'Rua Minimal',
           number: '456',
@@ -139,7 +143,7 @@ describe('StoreRepository', () => {
           state: 'SP',
           zipCode: '01310-100',
         },
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
 
@@ -160,12 +164,9 @@ describe('StoreRepository', () => {
     });
 
     it('should return all stores with user relation', async () => {
-      const inputDto1: CreateStoreDto = {
+      const inputDto1 = createValidStoreDto({
         name: 'Store One',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const hashedPassword = await bcrypt.hash('password123', 10);
       const secondUser = userRepository.create({
@@ -177,12 +178,10 @@ describe('StoreRepository', () => {
       });
       const savedSecondUser = await userRepository.save(secondUser);
 
-      const inputDto2: CreateStoreDto = {
+      const inputDto2 = createValidStoreDto({
         name: 'Store Two',
         userId: savedSecondUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       await repository.create(inputDto1);
       await repository.create(inputDto2);
@@ -210,12 +209,9 @@ describe('StoreRepository', () => {
     });
 
     it('should return store by id with user relation', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Find Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
       const foundStore = await repository.findById(createdStore.id);
@@ -237,12 +233,9 @@ describe('StoreRepository', () => {
     });
 
     it('should return store by userId with user relation', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'User Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       await repository.create(inputDto);
       const foundStore = await repository.findByUserId(testUser.id);
@@ -266,12 +259,9 @@ describe('StoreRepository', () => {
     });
 
     it('should update store name', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Original Name',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
       const updateDto: UpdateStoreDto = {
@@ -287,12 +277,9 @@ describe('StoreRepository', () => {
     });
 
     it('should update multiple fields', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Original Name',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
       const newWorkingHours = createValidWorkingHours();
@@ -314,12 +301,9 @@ describe('StoreRepository', () => {
     });
 
     it('should update location', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Location Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
       const newLocation = {
@@ -344,13 +328,10 @@ describe('StoreRepository', () => {
     });
 
     it('should update imageUrl to null', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Image Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
         imageUrl: 'https://example.com/old-image.jpg',
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
       const updateDto: UpdateStoreDto = {
@@ -366,12 +347,9 @@ describe('StoreRepository', () => {
 
   describe('delete', () => {
     it('should delete store', async () => {
-      const inputDto: CreateStoreDto = {
+      const inputDto = createValidStoreDto({
         name: 'Delete Store',
-        userId: testUser.id,
-        workingHours: createValidWorkingHours(),
-        location: createValidLocation(),
-      };
+      });
 
       const createdStore = await repository.create(inputDto);
       await repository.delete(createdStore.id);

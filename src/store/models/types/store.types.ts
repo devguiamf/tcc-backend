@@ -1,3 +1,10 @@
+export enum AppointmentInterval {
+  FIVE_MINUTES = 5,
+  TEN_MINUTES = 10,
+  FIFTEEN_MINUTES = 15,
+  THIRTY_MINUTES = 30,
+}
+
 export interface WorkingHours {
   dayOfWeek: number;
   isOpen: boolean;
@@ -23,6 +30,7 @@ export interface StoreOutput {
   userId: string;
   workingHours: WorkingHours[];
   location: Location;
+  appointmentInterval: AppointmentInterval;
   imageUrl?: string;
   createdAt: Date;
   updatedAt: Date;

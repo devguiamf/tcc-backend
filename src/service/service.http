@@ -5,7 +5,11 @@
 ### Variables
 @serviceId = a027d876-b983-417b-b055-6248b5f46218
 @storeId = b027d876-b983-417b-b055-6248b5f46219
-@token = your-jwt-token-here
+
+
+
+@token_cliente = token_cliente
+@token_prestador = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNjEyNzQ0Ny0zOWQ5LTQ0N2MtYmNjYS0xYjRmYmJjZDJjMzQiLCJpYXQiOjE3NjI2MzI0MjcsImV4cCI6MTc2MjcxODgyN30.EhFwTpwmySu99LS9xgdb2Imrvvxxmh8-o2XKBOrKsP0
 
 ### Test endpoint
 GET {{baseUrl}}/services/admin/test
@@ -13,7 +17,7 @@ GET {{baseUrl}}/services/admin/test
 ### Create Service (Requires Authentication)
 POST {{baseUrl}}/services
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{token_prestador}}
 
 {
   "title": "Corte de Cabelo Masculino",
@@ -26,7 +30,7 @@ Authorization: Bearer {{token}}
 ### Create Service - Without Image
 POST {{baseUrl}}/services
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{token_prestador}}
 
 {
   "title": "Barba Completa",
@@ -40,7 +44,7 @@ GET {{baseUrl}}/services
 
 ### Get My Services (Requires Authentication)
 GET {{baseUrl}}/services/my-services
-Authorization: Bearer {{token}}
+Authorization: Bearer {{token_prestador}}
 
 ### Get Services By Store ID
 GET {{baseUrl}}/services/store/{{storeId}}
@@ -51,7 +55,7 @@ GET {{baseUrl}}/services/{{serviceId}}
 ### Update Service (Requires Authentication)
 PUT {{baseUrl}}/services/{{serviceId}}
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{token_prestador}}
 
 {
   "title": "Corte de Cabelo Masculino Atualizado",
@@ -64,7 +68,7 @@ Authorization: Bearer {{token}}
 ### Update Service - Partial Update
 PUT {{baseUrl}}/services/{{serviceId}}
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{token_prestador}}
 
 {
   "price": 55.00
@@ -72,5 +76,5 @@ Authorization: Bearer {{token}}
 
 ### Delete Service (Requires Authentication)
 DELETE {{baseUrl}}/services/{{serviceId}}
-Authorization: Bearer {{token}}
+Authorization: Bearer {{token_prestador}}
 

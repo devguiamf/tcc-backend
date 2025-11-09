@@ -18,6 +18,7 @@ export class StoreRepository {
       userId: input.userId,
       workingHours: input.workingHours,
       location: input.location,
+      appointmentInterval: input.appointmentInterval,
       imageUrl: input.imageUrl || null,
     });
     return await this.repository.save(store);

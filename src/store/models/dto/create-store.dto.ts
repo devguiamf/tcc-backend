@@ -13,8 +13,10 @@ import {
   Max,
   Matches,
   Length,
+  IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { AppointmentInterval } from '../types/store.types';
 
 export class WorkingHoursDto {
   @IsNumber()
@@ -105,6 +107,10 @@ export class CreateStoreDto {
   @ValidateNested()
   @Type(() => LocationDto)
   location: LocationDto;
+
+  @IsEnum(AppointmentInterval)
+  @IsNotEmpty()
+  appointmentInterval: AppointmentInterval;
 
   @IsOptional()
   @IsString()

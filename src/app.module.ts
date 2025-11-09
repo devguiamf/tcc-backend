@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CoreModule } from './core/core.module';
-import { SharedModule } from './shared/shared.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { StoreModule } from './store/store.module';
@@ -30,7 +29,6 @@ import { ServiceModule } from './service/service.module';
       inject: [ConfigService],
     }),
     CoreModule,
-    SharedModule,
     UserModule,
     AuthModule,
     StoreModule,

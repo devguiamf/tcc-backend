@@ -8,9 +8,11 @@ import {
   MinLength,
   ArrayMinSize,
   IsUrl,
+  IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateStoreDto, WorkingHoursDto, LocationDto } from './create-store.dto';
+import { AppointmentInterval } from '../types/store.types';
 
 export class UpdateStoreDto extends PartialType(CreateStoreDto) {
   @IsOptional()
@@ -30,6 +32,10 @@ export class UpdateStoreDto extends PartialType(CreateStoreDto) {
   @ValidateNested()
   @Type(() => LocationDto)
   location?: LocationDto;
+
+  @IsOptional()
+  @IsEnum(AppointmentInterval)
+  appointmentInterval?: AppointmentInterval;
 
   @IsOptional()
   @IsString()

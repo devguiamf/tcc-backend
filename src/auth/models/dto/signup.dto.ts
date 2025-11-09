@@ -1,4 +1,4 @@
-import { UserType } from '@/user/models/types/user.types';
+import { UserType } from '../../../user/models/types/user.types';
 import { IsString, IsEmail, IsEnum, IsOptional, MinLength, Matches } from 'class-validator';
 
 export class SignupDto {

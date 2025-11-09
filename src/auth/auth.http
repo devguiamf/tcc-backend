@@ -3,22 +3,25 @@
 @baseUrl = http://localhost:3000
 
 ### Variables
-@email = legostartbr@gmail.com
+@email_cliente = legostartbr@gmail.com
+
+@email_prestador = guilherme.amf18@gmail.com
+
 @password = password123
 @newPassword = newpassword123
 
 ### Test endpoint
 GET {{baseUrl}}/auth/admin/test
 
-### Signup
+### Signup - Cliente
 POST {{baseUrl}}/auth/signup
 Content-Type: application/json
 
 {
   "name": "John Doe",
-  "email": "{{email}}",
+  "email": "{{email_cliente}}",
   "password": "{{password}}",
-  "type": "cliente",
+  "type": "prestador",
   "cpf": "123.456.789-00",
   "phone": "11999999999"
 }
@@ -28,20 +31,29 @@ POST {{baseUrl}}/auth/signup
 Content-Type: application/json
 
 {
-  "name": "Jane Smith",
-  "email": "jane@example.com",
+  "name": "Guilherme Amf",
+  "email": "{{email_prestador}}",
   "password": "{{password}}",
   "type": "prestador",
   "cpf": "987.654.321-00",
   "phone": "11988888888"
 }
 
-### Login
+### Login - Cliente
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "{{email}}",
+  "email": "{{email_cliente}}",
+  "password": "{{password}}"
+}
+
+### Login - Prestador
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email_prestador}}",
   "password": "{{password}}"
 }
 
@@ -51,7 +63,7 @@ POST {{baseUrl}}/auth/request-password-reset
 Content-Type: application/json
 
 {
-  "email": "{{email}}"
+  "email": "{{email_cliente}}"
 }
 
 ### Confirm Password Reset (Step 2)
@@ -70,7 +82,7 @@ POST {{baseUrl}}/auth/reset-password
 Content-Type: application/json
 
 {
-  "email": "{{email}}",
+  "email": "{{email_cliente}}",
   "newPassword": "{{newPassword}}"
 }
 

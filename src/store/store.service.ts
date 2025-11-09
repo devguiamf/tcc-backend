@@ -117,6 +117,7 @@ export class StoreService {
       userId: store.userId,
       workingHours: store.workingHours,
       location: store.location,
+      appointmentInterval: store.appointmentInterval,
       imageUrl: store.imageUrl || undefined,
       createdAt: store.createdAt,
       updatedAt: store.updatedAt,
