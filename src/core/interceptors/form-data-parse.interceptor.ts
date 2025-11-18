@@ -19,7 +19,7 @@ export class FormDataParseInterceptor implements NestInterceptor {
 
   private parseJsonFields(body: any): void {
     for (const key in body) {
-      if (body.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) {
         const value = body[key];
         if (typeof value === 'string' && this.isJsonString(value)) {
           try {

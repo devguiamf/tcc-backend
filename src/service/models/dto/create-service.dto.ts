@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, IsNumber, IsOptional, MinLength, IsUrl, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateServiceDto {
   @IsString()
@@ -11,11 +12,13 @@ export class CreateServiceDto {
   @MinLength(10)
   description: string;
 
+  @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()
   @Min(0.01)
   price: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()
   @Min(1)

@@ -39,17 +39,6 @@ export class StoreController {
     return await this.service.findAll();
   }
 
-  @Post(':id/upload-image')
-  @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file'))
-  @HttpCode(HttpStatus.OK)
-  async uploadImage(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<StoreOutput> {
-    return await this.service.uploadImage(file, id);
-  }
-
   @Get(':id')
   async findById(@Param('id') id: string): Promise<StoreOutput> {
     return await this.service.findById(id);

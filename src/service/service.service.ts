@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { existsSync } from 'fs';
 import { ServiceRepository } from './service.repository';
 import { StoreRepository } from '../store/store.repository';
 import { FileService } from '../file/file.service';
@@ -37,16 +38,19 @@ export class ServiceService {
         service.id,
       );
       const updatedService = await this.repository.update(service.id, {
-        imageUrl: uploadedFile.url,
+        imageUrl: uploadedFile.filePath,
       });
-      return this.mapToOutput(updatedService);
+      return await this.mapToOutput(updatedService);
     }
-    return this.mapToOutput(service);
+    return await this.mapToOutput(service);
   }
 
   async findAll(): Promise<ServiceOutput[]> {
     const services = await this.repository.findAll();
-    return services.map((service) => this.mapToOutput(service));
+    const outputs = await Promise.all(
+      services.map((service) => this.mapToOutput(service)),
+    );
+    return outputs;
   }
 
   async findById(id: string): Promise<ServiceOutput> {
@@ -54,12 +58,15 @@ export class ServiceService {
     if (!service) {
       throw new NotFoundException('Service not found');
     }
-    return this.mapToOutput(service);
+    return await this.mapToOutput(service);
   }
 
   async findByStoreId(storeId: string): Promise<ServiceOutput[]> {
     const services = await this.repository.findByStoreId(storeId);
-    return services.map((service) => this.mapToOutput(service));
+    const outputs = await Promise.all(
+      services.map((service) => this.mapToOutput(service)),
+    );
+    return outputs;
   }
 
   async findByUserId(userId: string): Promise<ServiceOutput[]> {
@@ -68,7 +75,10 @@ export class ServiceService {
       throw new NotFoundException('Store not found for this user');
     }
     const services = await this.repository.findByStoreId(store.id);
-    return services.map((service) => this.mapToOutput(service));
+    const outputs = await Promise.all(
+      services.map((service) => this.mapToOutput(service)),
+    );
+    return outputs;
   }
 
   async update(
@@ -93,11 +103,11 @@ export class ServiceService {
         id,
       );
       const finalService = await this.repository.update(id, {
-        imageUrl: uploadedFile.url,
+        imageUrl: uploadedFile.filePath,
       });
-      return this.mapToOutput(finalService);
+      return await this.mapToOutput(finalService);
     }
-    return this.mapToOutput(updatedService);
+    return await this.mapToOutput(updatedService);
   }
 
   async delete(id: string, userId: string): Promise<void> {
@@ -113,31 +123,21 @@ export class ServiceService {
     await this.repository.delete(id);
   }
 
-  async uploadImage(
-    file: Express.Multer.File,
-    serviceId: string,
-    userId: string,
-  ): Promise<ServiceOutput> {
-    const service = await this.repository.findById(serviceId);
-    if (!service) {
-      throw new NotFoundException('Service not found');
+  private async mapToOutput(service: ServiceEntity): Promise<ServiceOutput> {
+    let imageBase64: string | undefined;
+    if (service.imageUrl) {
+      if (existsSync(service.imageUrl)) {
+        const base64 = await this.fileService.getFileBase64(service.imageUrl);
+        if (base64) {
+          const files = await this.fileService.findByModuleAndEntityId(
+            FileModule.SERVICE,
+            service.id,
+          );
+          const mimeType = files.length > 0 ? files[0].mimeType : 'image/jpeg';
+          imageBase64 = `data:${mimeType};base64,${base64}`;
+        }
+      }
     }
-    const store = await this.storeRepository.findByUserId(userId);
-    if (!store || service.storeId !== store.id) {
-      throw new ForbiddenException('You can only upload images for services from your own store');
-    }
-    const uploadedFile = await this.fileService.upload(
-      file,
-      FileModule.SERVICE,
-      serviceId,
-    );
-    const updatedService = await this.repository.update(serviceId, {
-      imageUrl: uploadedFile.url,
-    });
-    return this.mapToOutput(updatedService);
-  }
-
-  private mapToOutput(service: ServiceEntity): ServiceOutput {
     return {
       id: service.id,
       title: service.title,
@@ -145,6 +145,7 @@ export class ServiceService {
       price: Number(service.price),
       durationMinutes: service.durationMinutes,
       imageUrl: service.imageUrl || undefined,
+      imageBase64,
       storeId: service.storeId,
       createdAt: service.createdAt,
       updatedAt: service.updatedAt,

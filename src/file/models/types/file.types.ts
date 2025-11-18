@@ -13,6 +13,7 @@ export interface FileOutput {
   entityId: string;
   filePath: string;
   url: string;
+  base64?: string;
   createdAt: Date;
 }
 

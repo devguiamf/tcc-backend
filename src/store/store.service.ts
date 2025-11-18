@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { existsSync } from 'fs';
 import { StoreRepository } from './store.repository';
 import { UserRepository } from '../user/user.repository';
 import { FileService } from '../file/file.service';
@@ -32,16 +33,19 @@ export class StoreService {
         store.id,
       );
       const updatedStore = await this.repository.update(store.id, {
-        imageUrl: uploadedFile.url,
+        imageUrl: uploadedFile.filePath,
       });
-      return this.mapToOutput(updatedStore);
+      return await this.mapToOutput(updatedStore);
     }
-    return this.mapToOutput(store);
+    return await this.mapToOutput(store);
   }
 
   async findAll(): Promise<StoreOutput[]> {
     const stores = await this.repository.findAll();
-    return stores.map((store) => this.mapToOutput(store));
+    const outputs = await Promise.all(
+      stores.map((store) => this.mapToOutput(store)),
+    );
+    return outputs;
   }
 
   async findById(id: string): Promise<StoreOutput> {
@@ -49,7 +53,7 @@ export class StoreService {
     if (!store) {
       throw new NotFoundException('Store not found');
     }
-    return this.mapToOutput(store);
+    return await this.mapToOutput(store);
   }
 
   async findByUserId(userId: string): Promise<StoreOutput> {
@@ -57,7 +61,7 @@ export class StoreService {
     if (!store) {
       throw new NotFoundException('Store not found for this user');
     }
-    return this.mapToOutput(store);
+    return await this.mapToOutput(store);
   }
 
   async update(
@@ -80,11 +84,11 @@ export class StoreService {
         id,
       );
       const finalStore = await this.repository.update(id, {
-        imageUrl: uploadedFile.url,
+        imageUrl: uploadedFile.filePath,
       });
-      return this.mapToOutput(finalStore);
+      return await this.mapToOutput(finalStore);
     }
-    return this.mapToOutput(store);
+    return await this.mapToOutput(store);
   }
 
   async delete(id: string): Promise<void> {
@@ -94,25 +98,6 @@ export class StoreService {
     }
     await this.fileService.deleteByModuleAndEntityId(FileModule.STORE, id);
     await this.repository.delete(id);
-  }
-
-  async uploadImage(
-    file: Express.Multer.File,
-    storeId: string,
-  ): Promise<StoreOutput> {
-    const store = await this.repository.findById(storeId);
-    if (!store) {
-      throw new NotFoundException('Store not found');
-    }
-    const uploadedFile = await this.fileService.upload(
-      file,
-      FileModule.STORE,
-      storeId,
-    );
-    const updatedStore = await this.repository.update(storeId, {
-      imageUrl: uploadedFile.url,
-    });
-    return this.mapToOutput(updatedStore);
   }
 
   private async validateStoreData(input: CreateStoreDto): Promise<void> {
@@ -159,7 +144,21 @@ export class StoreService {
     }
   }
 
-  private mapToOutput(store: StoreEntity): StoreOutput {
+  private async mapToOutput(store: StoreEntity): Promise<StoreOutput> {
+    let imageBase64: string | undefined;
+    if (store.imageUrl) {
+      if (existsSync(store.imageUrl)) {
+        const base64 = await this.fileService.getFileBase64(store.imageUrl);
+        if (base64) {
+          const files = await this.fileService.findByModuleAndEntityId(
+            FileModule.STORE,
+            store.id,
+          );
+          const mimeType = files.length > 0 ? files[0].mimeType : 'image/jpeg';
+          imageBase64 = `data:${mimeType};base64,${base64}`;
+        }
+      }
+    }
     return {
       id: store.id,
       name: store.name,
@@ -168,6 +167,7 @@ export class StoreService {
       location: store.location,
       appointmentInterval: store.appointmentInterval,
       imageUrl: store.imageUrl || undefined,
+      imageBase64,
       createdAt: store.createdAt,
       updatedAt: store.updatedAt,
     };

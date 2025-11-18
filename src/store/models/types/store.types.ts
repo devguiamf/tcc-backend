@@ -32,6 +32,7 @@ export interface StoreOutput {
   location: Location;
   appointmentInterval: AppointmentInterval;
   imageUrl?: string;
+  imageBase64?: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { existsSync, mkdirSync, unlinkSync, createReadStream } from 'fs';
-import { writeFile } from 'fs/promises';
+import { writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { FileRepository } from './file.repository';
 import { FileModule, FileOutput } from './models/types/file.types';
@@ -54,7 +54,7 @@ export class FileService {
     if (!file) {
       throw new NotFoundException('File not found');
     }
-    return this.mapToOutput(file);
+    return await this.mapToOutputWithBase64(file);
   }
 
   async findByModuleAndEntityId(
@@ -62,7 +62,10 @@ export class FileService {
     entityId: string,
   ): Promise<FileOutput[]> {
     const files = await this.repository.findByModuleAndEntityId(module, entityId);
-    return files.map((file) => this.mapToOutput(file));
+    const filesWithBase64 = await Promise.all(
+      files.map((file) => this.mapToOutputWithBase64(file)),
+    );
+    return filesWithBase64;
   }
 
   async getFileStream(id: string): Promise<{
@@ -131,6 +134,19 @@ export class FileService {
     }
   }
 
+  public async getFileBase64(filePath: string): Promise<string | undefined> {
+    if (!existsSync(filePath)) {
+      return undefined;
+    }
+    try {
+      const fileBuffer = await readFile(filePath);
+      const base64 = fileBuffer.toString('base64');
+      return base64;
+    } catch {
+      return undefined;
+    }
+  }
+
   private mapToOutput(file: FileEntity): FileOutput {
     const baseUrl =
       this.configService.get<string>('BASE_URL') || 'http://localhost:3000';
@@ -146,6 +162,15 @@ export class FileService {
       url: `${baseUrl}/files/${file.id}/download`,
       createdAt: file.createdAt,
     };
+  }
+
+  private async mapToOutputWithBase64(file: FileEntity): Promise<FileOutput> {
+    const output = this.mapToOutput(file);
+    const base64 = await this.getFileBase64(file.filePath);
+    if (base64) {
+      output.base64 = base64;
+    }
+    return output;
   }
 }
 

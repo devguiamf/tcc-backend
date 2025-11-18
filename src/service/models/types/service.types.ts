@@ -5,6 +5,7 @@ export interface ServiceOutput {
   price: number;
   durationMinutes: number;
   imageUrl?: string;
+  imageBase64?: string;
   storeId: string;
   createdAt: Date;
   updatedAt: Date;

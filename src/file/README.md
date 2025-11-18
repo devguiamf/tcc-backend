@@ -2,54 +2,15 @@
 
 ## Description
 
-The File module manages file uploads and downloads for the system. It organizes files by module (service, store) and entity ID, allowing each entity to have multiple associated files. The module handles file storage on the filesystem, metadata persistence in the database, and provides endpoints for uploading, downloading, and managing files using FormData.
+The File module is an **internal module** that manages file uploads and storage for the system. It organizes files by module (service, store) and entity ID, allowing each entity to have multiple associated files. The module handles file storage on the filesystem, metadata persistence in the database, and provides base64 encoding for image retrieval.
 
-## Endpoints
+**Note**: This module does not expose public endpoints. It is used internally by Service and Store modules to handle file uploads automatically when FormData is sent.
 
-### Upload File
-- **Method**: `POST`
-- **Path**: `/files/upload`
-- **Authentication**: Required (JWT Bearer Token)
-- **Content-Type**: `multipart/form-data`
-- **Query Parameters**:
-  - `module`: `service` or `store` (enum)
-  - `entityId`: UUID of the entity (service or store)
-- **Body**: FormData with field name `file`
-- **Response**: `FileOutput` (201 Created)
-- **Description**: Uploads a file and associates it with a specific module and entity. The file is stored in a directory structure organized by module.
+## Internal Usage
 
-### Get File by ID
-- **Method**: `GET`
-- **Path**: `/files/:id`
-- **Response**: `FileOutput` (200 OK)
-- **Error**: 404 Not Found if file doesn't exist
-- **Description**: Retrieves file metadata by its ID.
-
-### Get Files by Module and Entity
-- **Method**: `GET`
-- **Path**: `/files/module/:module/entity/:entityId`
-- **Response**: `FileOutput[]` (200 OK)
-- **Description**: Retrieves all files associated with a specific module and entity ID, ordered by creation date (newest first).
-
-### Download File
-- **Method**: `GET`
-- **Path**: `/files/:id/download`
-- **Response**: File stream with appropriate Content-Type and Content-Disposition headers
-- **Error**: 404 Not Found if file doesn't exist
-- **Description**: Downloads the actual file content as a stream.
-
-### Delete File
-- **Method**: `DELETE`
-- **Path**: `/files/:id`
-- **Authentication**: Required (JWT Bearer Token)
-- **Response**: 204 No Content
-- **Error**: 404 Not Found if file doesn't exist
-- **Description**: Deletes both the file from the filesystem and its metadata from the database.
-
-### Test Endpoint
-- **Method**: `GET`
-- **Path**: `/files/admin/test`
-- **Response**: `{ message: string }` (200 OK)
+The File module is used internally by:
+- **Service Module**: Automatically processes image uploads when creating/updating services via FormData
+- **Store Module**: Automatically processes image uploads when creating/updating stores via FormData
 
 ## Business Rules
 
@@ -60,40 +21,40 @@ The File module manages file uploads and downloads for the system. It organizes 
 
 2. **File Storage**: 
    - Files are stored in the filesystem under `./uploads/{module}/{fileName}`.
-   - The upload directory path can be configured via `UPLOAD_PATH` environment variable.
+   - The upload directory path can be configured via `UPLOAD_PATH` environment variable (default: `./uploads`).
    - File names are generated to avoid conflicts: `{originalName}_{timestamp}_{randomString}.{extension}`.
+   - The file path is saved in the database in the `imageUrl` field of Service and Store entities.
 
 3. **File Metadata**: 
    - All file metadata is stored in the database.
    - Original filename, generated filename, MIME type, size, module, entity ID, and file path are persisted.
-   - The URL for accessing the file is automatically generated based on the `BASE_URL` environment variable.
+   - When files are retrieved, they are automatically converted to base64 format for easy consumption.
 
-4. **File Access**: 
-   - File metadata can be retrieved without authentication.
-   - File downloads are public (no authentication required).
-   - File uploads and deletions require authentication.
+4. **Base64 Encoding**: 
+   - When Service or Store entities are retrieved, if they have an associated image file, the image is automatically read from disk and converted to base64.
+   - The base64 string is returned in the `imageBase64` field with the format: `data:{mimeType};base64,{base64String}`.
+   - This allows the frontend to display images directly without additional API calls.
 
-## Data Validation
+## File Service Methods
 
-### UploadFileDto (Query Parameters)
+### upload(file, module, entityId)
+- Uploads a file and saves it to the filesystem
+- Creates metadata entry in the database
+- Returns `FileOutput` with file information
+- The file path is saved in the entity's `imageUrl` field
 
-- **module**: 
-  - Required
-  - Type: enum (`service` or `store`)
-  - Must be one of the valid FileModule values
+### findById(id)
+- Retrieves file metadata by ID
+- Returns `FileOutput` with base64 encoded content
 
-- **entityId**: 
-  - Required
-  - Type: UUID string
-  - Must be a valid UUID format
+### findByModuleAndEntityId(module, entityId)
+- Retrieves all files for a specific module and entity
+- Returns array of `FileOutput` with base64 encoded content
 
-### File Upload (FormData)
-
-- **file**: 
-  - Required
-  - Type: File (multipart/form-data)
-  - Field name must be `file`
-  - Any file type is accepted (no MIME type restrictions)
+### getFileBase64(filePath)
+- Reads a file from disk and converts it to base64
+- Returns base64 string or undefined if file doesn't exist
+- Used internally by Service and Store modules
 
 ## File Output Structure
 
@@ -107,7 +68,8 @@ The File module manages file uploads and downloads for the system. It organizes 
   module: FileModule;             // 'service' or 'store'
   entityId: string;               // UUID of the associated entity
   filePath: string;               // Full path on filesystem
-  url: string;                    // URL for downloading the file
+  url: string;                    // URL (deprecated, not used)
+  base64?: string;                // Base64 encoded file content (when retrieved)
   createdAt: Date;                // Upload timestamp
 }
 ```
@@ -129,35 +91,25 @@ uploads/
 ## Environment Variables
 
 - **UPLOAD_PATH**: Base directory for file uploads (default: `./uploads`)
-- **BASE_URL**: Base URL for generating file download URLs (default: `http://localhost:3000`)
+- **BASE_URL**: Base URL (deprecated, not used for file access)
 
-## Authentication
+## Integration with Service and Store Modules
 
-The module uses JWT authentication for protected endpoints:
+The File module is automatically used by Service and Store modules:
 
-1. **Token Extraction**: The `JwtAuthGuard` extracts the Bearer token from the `Authorization` header.
-2. **User Identification**: The user ID is extracted from the decoded token.
+1. **Automatic Upload**: When a file is sent via FormData in create/update endpoints, the FileService automatically:
+   - Saves the file to `./uploads/{module}/`
+   - Creates metadata in the database
+   - Updates the entity's `imageUrl` field with the file path
 
-### Token Format
+2. **Automatic Base64 Encoding**: When Service or Store entities are retrieved:
+   - The system checks if `imageUrl` points to a local file
+   - If the file exists, it reads it and converts to base64
+   - Returns the base64 string in the `imageBase64` field
 
-```
-Authorization: Bearer <jwt-token>
-```
-
-## Error Responses
-
-### 400 Bad Request
-- Missing file in upload request
-- Invalid module value
-- Invalid UUID format for entityId
-
-### 401 Unauthorized
-- Missing or invalid JWT token (for upload/delete endpoints)
-- Token not provided in Authorization header
-
-### 404 Not Found
-- File not found by ID
-- File not found on filesystem (metadata exists but file is missing)
+3. **Automatic Cleanup**: When a Service or Store is deleted:
+   - All associated files are automatically deleted from disk
+   - File metadata is removed from the database
 
 ## Database Relations
 
@@ -168,10 +120,8 @@ Authorization: Bearer <jwt-token>
 ## Dependencies
 
 - `FileRepository`: Handles database operations for file metadata
-- `JwtAuthGuard`: Validates JWT tokens for protected endpoints
 - `ConfigService`: Reads environment variables for configuration
 - TypeORM: For entity management and database access
-- `@nestjs/platform-express`: Provides FileInterceptor for handling multipart/form-data
 
 ## Module Exports
 
@@ -180,40 +130,34 @@ Authorization: Bearer <jwt-token>
 
 ## Example Usage Flow
 
-1. **Upload File**: 
-   - Client sends POST request with FormData containing the file
-   - Query parameters specify module and entityId
-   - System generates unique filename and stores file
+1. **Create/Update with File**: 
+   - Client sends POST/PUT request with FormData containing entity data + file
+   - Service/Store module receives the request
+   - FileService automatically uploads the file to `./uploads/{module}/`
    - File metadata is saved to database
-   - Returns FileOutput with URL for accessing the file
+   - Entity's `imageUrl` is updated with the file path
+   - Entity is returned with `imageBase64` field populated
 
-2. **List Files**: 
-   - Client requests files by module and entityId
-   - System returns all associated files
+2. **Retrieve Entity**: 
+   - Client requests Service or Store by ID
+   - System checks if `imageUrl` points to a local file
+   - If file exists, reads it and converts to base64
+   - Returns entity with `imageBase64` field containing `data:{mimeType};base64,{base64String}`
 
-3. **Download File**: 
-   - Client requests file by ID
-   - System streams file content with appropriate headers
-
-4. **Delete File**: 
-   - Authenticated user requests deletion
-   - System removes file from filesystem and metadata from database
-
-## Integration with Service and Store Modules
-
-The File module is designed to work with the Service and Store modules:
-
-- **Service Module**: Can upload images for services using `module=service` and the service ID as `entityId`
-- **Store Module**: Can upload images for stores using `module=store` and the store ID as `entityId`
-
-After uploading a file, the returned URL can be used to update the `imageUrl` field in Service or Store entities.
+3. **Delete Entity**: 
+   - When Service or Store is deleted
+   - System automatically deletes all associated files from disk
+   - File metadata is removed from database
 
 ## Notes
 
-- Files are stored on the local filesystem (consider using cloud storage for production)
+- Files are stored on the local filesystem in `./uploads/{module}/` directory
+- File paths are saved in the `imageUrl` field of Service and Store entities
+- Images are automatically converted to base64 when entities are retrieved
 - File names are sanitized to avoid conflicts and special characters
 - No file size limits are enforced (consider adding limits for production)
 - No MIME type restrictions (consider adding validation for security)
 - The module automatically creates necessary directories if they don't exist
-- Files are not automatically deleted when entities are deleted (should be handled manually or via cascade operations)
+- Files are automatically deleted when entities are deleted
+- The module is internal-only and has no public endpoints
 

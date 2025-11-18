@@ -15,15 +15,21 @@ import {
   Length,
   IsEnum,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { AppointmentInterval } from '../types/store.types';
 
 export class WorkingHoursDto {
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   @Max(6)
   dayOfWeek: number;
 
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
   @IsBoolean()
   isOpen: boolean;
 
@@ -78,10 +84,12 @@ export class LocationDto {
   })
   zipCode: string;
 
+  @Type(() => Number)
   @IsOptional()
   @IsNumber()
   latitude?: number;
 
+  @Type(() => Number)
   @IsOptional()
   @IsNumber()
   longitude?: number;
