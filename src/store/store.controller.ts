@@ -9,7 +9,11 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { FormDataParseInterceptor } from '../core/interceptors/form-data-parse.interceptor';
 import { StoreService } from './store.service';
 import { CreateStoreDto } from './models/dto/create-store.dto';
 import { UpdateStoreDto } from './models/dto/update-store.dto';
@@ -21,14 +25,29 @@ export class StoreController {
   constructor(private readonly service: StoreService) {}
 
   @Post()
+  @UseInterceptors(FileInterceptor('file'), FormDataParseInterceptor)
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createDto: CreateStoreDto): Promise<StoreOutput> {
-    return await this.service.create(createDto);
+  async create(
+    @Body() createDto: CreateStoreDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<StoreOutput> {
+    return await this.service.create(createDto, file);
   }
 
   @Get()
   async findAll(): Promise<StoreOutput[]> {
     return await this.service.findAll();
+  }
+
+  @Post(':id/upload-image')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<StoreOutput> {
+    return await this.service.uploadImage(file, id);
   }
 
   @Get(':id')
@@ -42,11 +61,13 @@ export class StoreController {
   }
 
   @Put(':id')
+  @UseInterceptors(FileInterceptor('file'), FormDataParseInterceptor)
   async update(
     @Param('id') id: string,
     @Body() updateDto: UpdateStoreDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
   ): Promise<StoreOutput> {
-    return await this.service.update(id, updateDto);
+    return await this.service.update(id, updateDto, file);
   }
 
   @Delete(':id')

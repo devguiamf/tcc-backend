@@ -6,22 +6,36 @@ import {
 } from '@nestjs/common';
 import { StoreRepository } from './store.repository';
 import { UserRepository } from '../user/user.repository';
+import { FileService } from '../file/file.service';
 import { CreateStoreDto } from './models/dto/create-store.dto';
 import { UpdateStoreDto } from './models/dto/update-store.dto';
 import { StoreOutput } from './models/types/store.types';
 import { StoreEntity } from './models/store.entity';
 import { UserType } from '../user/models/types/user.types';
+import { FileModule } from '../file/models/types/file.types';
 
 @Injectable()
 export class StoreService {
   constructor(
     private readonly repository: StoreRepository,
     private readonly userRepository: UserRepository,
+    private readonly fileService: FileService,
   ) {}
 
-  async create(input: CreateStoreDto): Promise<StoreOutput> {
+  async create(input: CreateStoreDto, file?: Express.Multer.File): Promise<StoreOutput> {
     await this.validateStoreData(input);
     const store = await this.repository.create(input);
+    if (file) {
+      const uploadedFile = await this.fileService.upload(
+        file,
+        FileModule.STORE,
+        store.id,
+      );
+      const updatedStore = await this.repository.update(store.id, {
+        imageUrl: uploadedFile.url,
+      });
+      return this.mapToOutput(updatedStore);
+    }
     return this.mapToOutput(store);
   }
 
@@ -46,7 +60,11 @@ export class StoreService {
     return this.mapToOutput(store);
   }
 
-  async update(id: string, input: UpdateStoreDto): Promise<StoreOutput> {
+  async update(
+    id: string,
+    input: UpdateStoreDto,
+    file?: Express.Multer.File,
+  ): Promise<StoreOutput> {
     const existingStore = await this.repository.findById(id);
     if (!existingStore) {
       throw new NotFoundException('Store not found');
@@ -55,6 +73,17 @@ export class StoreService {
       await this.validateUserCanHaveStore(input.userId);
     }
     const store = await this.repository.update(id, input);
+    if (file) {
+      const uploadedFile = await this.fileService.upload(
+        file,
+        FileModule.STORE,
+        id,
+      );
+      const finalStore = await this.repository.update(id, {
+        imageUrl: uploadedFile.url,
+      });
+      return this.mapToOutput(finalStore);
+    }
     return this.mapToOutput(store);
   }
 
@@ -63,7 +92,27 @@ export class StoreService {
     if (!store) {
       throw new NotFoundException('Store not found');
     }
+    await this.fileService.deleteByModuleAndEntityId(FileModule.STORE, id);
     await this.repository.delete(id);
+  }
+
+  async uploadImage(
+    file: Express.Multer.File,
+    storeId: string,
+  ): Promise<StoreOutput> {
+    const store = await this.repository.findById(storeId);
+    if (!store) {
+      throw new NotFoundException('Store not found');
+    }
+    const uploadedFile = await this.fileService.upload(
+      file,
+      FileModule.STORE,
+      storeId,
+    );
+    const updatedStore = await this.repository.update(storeId, {
+      imageUrl: uploadedFile.url,
+    });
+    return this.mapToOutput(updatedStore);
   }
 
   private async validateStoreData(input: CreateStoreDto): Promise<void> {

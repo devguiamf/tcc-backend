@@ -74,6 +74,19 @@ Authorization: Bearer {{token_prestador}}
   "price": 55.00
 }
 
+### Upload Image for Service (Requires Authentication)
+### Use FormData with field name 'file'
+POST {{baseUrl}}/services/{{serviceId}}/upload-image
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+Authorization: Bearer {{token_prestador}}
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="service-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
 ### Delete Service (Requires Authentication)
 DELETE {{baseUrl}}/services/{{serviceId}}
 Authorization: Bearer {{token_prestador}}

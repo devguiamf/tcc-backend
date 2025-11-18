@@ -5,6 +5,7 @@
 ### Variables
 @storeId = d13245b5-fde4-4ae7-9136-e27802c1cb59
 @userId = 7370bf2e-4852-4e80-9b15-61ee393250d2
+@token_prestador = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNjEyNzQ0Ny0zOWQ5LTQ0N2MtYmNjYS0xYjRmYmJjZDJjMzQiLCJpYXQiOjE3NjI2MzI0MjcsImV4cCI6MTc2MjcxODgyN30.EhFwTpwmySu99LS9xgdb2Imrvvxxmh8-o2XKBOrKsP0
 
 ### Test endpoint
 GET {{baseUrl}}/stores/admin/test
@@ -103,6 +104,19 @@ Content-Type: application/json
 {
   "name": "Partially Updated Store"
 }
+
+### Upload Image for Store (Requires Authentication)
+### Use FormData with field name 'file'
+POST {{baseUrl}}/stores/{{storeId}}/upload-image
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+Authorization: Bearer {{token_prestador}}
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="store-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
 ### Delete Store
 DELETE {{baseUrl}}/stores/{{storeId}}
