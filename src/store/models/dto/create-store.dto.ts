@@ -116,6 +116,7 @@ export class CreateStoreDto {
   @Type(() => LocationDto)
   location: LocationDto;
 
+  @Type(() => Number)
   @IsEnum(AppointmentInterval)
   @IsNotEmpty()
   appointmentInterval: AppointmentInterval;

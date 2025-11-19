@@ -1,7 +1,8 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsArray, ValidateNested, ArrayMinSize } from 'class-validator';
+import { IsArray, ValidateNested, ArrayMinSize, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateStoreDto, WorkingHoursDto, LocationDto } from './create-store.dto';
+import { AppointmentInterval } from '../types/store.types';
 
 export class UpdateStoreDto extends PartialType(CreateStoreDto) {
   @IsArray()
@@ -13,5 +14,9 @@ export class UpdateStoreDto extends PartialType(CreateStoreDto) {
   @ValidateNested()
   @Type(() => LocationDto)
   location?: LocationDto;
+
+  @Type(() => Number)
+  @IsEnum(AppointmentInterval)
+  appointmentInterval?: AppointmentInterval;
 }
 
