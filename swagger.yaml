@@ -1,0 +1,1600 @@
+openapi: 3.0.3
+info:
+  title: Backend TCC - Sistema de Agendamento API
+  description: |
+    API REST para sistema de agendamento desenvolvida com NestJS.
+    
+    ## Autenticação
+    A maioria dos endpoints requer autenticação via JWT Bearer Token. 
+    Obtenha o token através do endpoint `/auth/login` ou `/auth/signup`.
+    
+    ## Tipos de Usuário
+    - **CLIENTE**: Clientes que podem agendar serviços
+    - **PRESTADOR**: Prestadores de serviço que possuem lojas e serviços
+    
+    ## Regras de Negócio
+    - CLIENTE deve ter telefone obrigatório
+    - PRESTADOR deve ter CPF obrigatório
+    - Email deve ser único
+    - Senhas são hasheadas com bcrypt
+  version: 1.0.0
+  contact:
+    name: API Support
+servers:
+  - url: http://localhost:3000
+    description: Servidor de desenvolvimento local
+  - url: https://api.example.com
+    description: Servidor de produção
+
+tags:
+  - name: Auth
+    description: Autenticação e gerenciamento de senha
+  - name: Users
+    description: Gerenciamento de usuários
+  - name: Stores
+    description: Gerenciamento de lojas
+  - name: Services
+    description: Gerenciamento de serviços
+  - name: Appointments
+    description: Gerenciamento de agendamentos
+
+paths:
+  /auth/signup:
+    post:
+      tags:
+        - Auth
+      summary: Criar nova conta
+      description: Registra um novo usuário no sistema e retorna token de autenticação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupDto'
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email já está em uso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Fazer login
+      description: Autentica um usuário e retorna token JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginOutput'
+        '401':
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/request-password-reset:
+    post:
+      tags:
+        - Auth
+      summary: Solicitar redefinição de senha
+      description: Envia email com código para redefinição de senha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestResetPasswordDto'
+      responses:
+        '200':
+          description: Email enviado (se existir)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Se o e-mail existir, um link de redefinição de senha foi enviado
+
+  /auth/confirm-password-reset:
+    post:
+      tags:
+        - Auth
+      summary: Confirmar redefinição de senha
+      description: Redefine senha usando código de confirmação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmResetPasswordDto'
+      responses:
+        '200':
+          description: Senha redefinida com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Senha redefinida com sucesso
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Redefinir senha
+      description: Redefine senha usando email e nova senha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordDto'
+      responses:
+        '200':
+          description: Senha redefinida com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Senha redefinida com sucesso
+
+  /auth/admin/test:
+    post:
+      tags:
+        - Auth
+      summary: Teste do módulo de autenticação
+      description: Endpoint de teste para verificar se o módulo está funcionando
+      responses:
+        '200':
+          description: Módulo funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Auth module is working
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Listar todos os usuários
+      description: Retorna lista de todos os usuários cadastrados
+      responses:
+        '200':
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserOutput'
+    post:
+      tags:
+        - Users
+      summary: Criar novo usuário
+      description: Cria um novo usuário no sistema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserDto'
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email já está em uso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Buscar usuário por ID
+      description: Retorna informações de um usuário específico
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Usuário encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOutput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Users
+      summary: Atualizar usuário
+      description: Atualiza informações de um usuário existente
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserDto'
+      responses:
+        '200':
+          description: Usuário atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Email já está em uso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Users
+      summary: Deletar usuário
+      description: Remove um usuário do sistema
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Usuário deletado com sucesso
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/admin/test:
+    get:
+      tags:
+        - Users
+      summary: Teste do módulo de usuários
+      description: Endpoint de teste para verificar se o módulo está funcionando
+      responses:
+        '200':
+          description: Módulo funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User module is working
+
+  /stores:
+    get:
+      tags:
+        - Stores
+      summary: Listar todas as lojas
+      description: Retorna lista de todas as lojas, com opção de busca
+      parameters:
+        - name: search
+          in: query
+          description: Termo de busca para filtrar lojas
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de lojas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoreOutput'
+    post:
+      tags:
+        - Stores
+      summary: Criar nova loja
+      description: Cria uma nova loja. Aceita upload de imagem via multipart/form-data
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateStoreDto'
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Imagem da loja (opcional)
+      responses:
+        '201':
+          description: Lojacriada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /stores/{id}:
+    get:
+      tags:
+        - Stores
+      summary: Buscar loja por ID
+      description: Retorna informações de uma loja específica
+      parameters:
+        - $ref: '#/components/parameters/StoreIdParam'
+      responses:
+        '200':
+          description: Loja encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreOutput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Stores
+      summary: Atualizar loja
+      description: Atualiza informações de uma loja existente. Aceita upload de imagem via multipart/form-data
+      parameters:
+        - $ref: '#/components/parameters/StoreIdParam'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateStoreDto'
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Nova imagem da loja (opcional)
+      responses:
+        '200':
+          description: Loja atualizada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Stores
+      summary: Deletar loja
+      description: Remove uma loja do sistema
+      parameters:
+        - $ref: '#/components/parameters/StoreIdParam'
+      responses:
+        '204':
+          description: Loja deletada com sucesso
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /stores/user/{userId}:
+    get:
+      tags:
+        - Stores
+      summary: Buscar loja por ID do usuário
+      description: Retorna a loja associada a um usuário específico
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID do usuário
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Loja encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreOutput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /stores/admin/test:
+    get:
+      tags:
+        - Stores
+      summary: Teste do módulo de lojas
+      description: Endpoint de teste para verificar se o módulo está funcionando
+      responses:
+        '200':
+          description: Módulo funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Store module is working
+
+  /services:
+    get:
+      tags:
+        - Services
+      summary: Listar todos os serviços
+      description: Retorna lista de todos os serviços de todas as lojas (público)
+      responses:
+        '200':
+          description: Lista de serviços
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceOutput'
+    post:
+      tags:
+        - Services
+      summary: Criar novo serviço
+      description: Cria um novo serviço para a loja do usuário autenticado. Requer autenticação JWT. Aceita upload de imagem via multipart/form-data
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateServiceDto'
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Imagem do serviço (opcional)
+      responses:
+        '201':
+          description: Serviço criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /services/my-services:
+    get:
+      tags:
+        - Services
+      summary: Listar meus serviços
+      description: Retorna todos os serviços da loja do usuário autenticado
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de serviços do usuário
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceOutput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /services/store/{storeId}:
+    get:
+      tags:
+        - Services
+      summary: Listar serviços por loja
+      description: Retorna todos os serviços de uma loja específica (público)
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+      responses:
+        '200':
+          description: Lista de serviços da loja
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceOutput'
+
+  /services/{id}:
+    get:
+      tags:
+        - Services
+      summary: Buscar serviço por ID
+      description: Retorna informações de um serviço específico (público)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do serviço
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Serviço encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceOutput'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Services
+      summary: Atualizar serviço
+      description: Atualiza um serviço existente. Apenas o dono da loja pode atualizar. Aceita upload de imagem via multipart/form-data
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do serviço
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateServiceDto'
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Nova imagem do serviço (opcional)
+      responses:
+        '200':
+          description: Serviço atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Usuário não é dono da loja
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Services
+      summary: Deletar serviço
+      description: Remove um serviço. Apenas o dono da loja pode deletar
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do serviço
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Serviço deletado com sucesso
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Usuário não é dono da loja
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /services/admin/test:
+    get:
+      tags:
+        - Services
+      summary: Teste do módulo de serviços
+      description: Endpoint de teste para verificar se o módulo está funcionando
+      responses:
+        '200':
+          description: Módulo funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Service module is working
+
+  /appointments:
+    get:
+      tags:
+        - Appointments
+      summary: Listar meus agendamentos
+      description: Retorna todos os agendamentos do usuário autenticado, ordenados por data
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de agendamentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentOutput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Appointments
+      summary: Criar novo agendamento
+      description: Cria um novo agendamento para o usuário autenticado (CLIENTE). Valida disponibilidade, horário de funcionamento e conflitos
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppointmentDto'
+      responses:
+        '201':
+          description: Agendamento criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Conflito de horário ou loja fechada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /appointments/store/{storeId}:
+    get:
+      tags:
+        - Appointments
+      summary: Listar agendamentos da loja
+      description: Retorna todos os agendamentos de uma loja específica. Apenas o dono da loja pode acessar
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+      responses:
+        '200':
+          description: Lista de agendamentos da loja
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentOutput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Usuário não é dono da loja
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Loja não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /appointments/available-slots/{storeId}/{serviceId}:
+    get:
+      tags:
+        - Appointments
+      summary: Buscar horários disponíveis
+      description: Retorna lista de horários disponíveis para agendamento em uma data específica (público)
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - name: serviceId
+          in: path
+          required: true
+          description: ID do serviço
+          schema:
+            type: string
+            format: uuid
+        - name: date
+          in: query
+          required: true
+          description: Data para buscar horários disponíveis (formato ISO 8601)
+          schema:
+            type: string
+            format: date
+            example: '2024-12-25'
+      responses:
+        '200':
+          description: Lista de horários disponíveis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AvailableTimeSlot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /appointments/{id}:
+    get:
+      tags:
+        - Appointments
+      summary: Buscar agendamento por ID
+      description: Retorna informações de um agendamento específico. Usuários podem ver seus próprios agendamentos, PRESTADOR pode ver agendamentos de sua loja
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do agendamento
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Agendamento encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentOutput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Usuário não tem permissão para ver este agendamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Appointments
+      summary: Atualizar agendamento
+      description: Atualiza um agendamento existente. Apenas o dono do agendamento pode atualizar
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do agendamento
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAppointmentDto'
+      responses:
+        '200':
+          description: Agendamento atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentOutput'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Usuário não é dono do agendamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Appointments
+      summary: Deletar agendamento
+      description: Remove um agendamento. Apenas o dono do agendamento pode deletar
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do agendamento
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Agendamento deletado com sucesso
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Usuário não é dono do agendamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /appointments/{id}/cancel:
+    post:
+      tags:
+        - Appointments
+      summary: Cancelar agendamento
+      description: Cancela um agendamento existente. Apenas o dono do agendamento pode cancelar
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do agendamento
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Agendamento cancelado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentOutput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Usuário não é dono do agendamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /appointments/admin/test:
+    post:
+      tags:
+        - Appointments
+      summary: Teste do módulo de agendamentos
+      description: Endpoint de teste para verificar se o módulo está funcionando
+      responses:
+        '200':
+          description: Módulo funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Appointment module is working
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido através de /auth/login ou /auth/signup
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: ID do usuário
+      schema:
+        type: string
+        format: uuid
+    StoreId:
+      name: storeId
+      in: path
+      required: true
+      description: ID da loja
+      schema:
+        type: string
+        format: uuid
+    StoreIdParam:
+      name: id
+      in: path
+      required: true
+      description: ID da loja
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Requisição inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Não autenticado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Validation failed
+        error:
+          type: string
+          example: Bad Request
+
+    UserType:
+      type: string
+      enum:
+        - cliente
+        - prestador
+      description: Tipo de usuário no sistema
+
+    UserOutput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        name:
+          type: string
+          example: João Silva
+        email:
+          type: string
+          format: email
+          example: joao@example.com
+        type:
+          $ref: '#/components/schemas/UserType'
+        cpf:
+          type: string
+          nullable: true
+          pattern: '^\d{3}\.\d{3}\.\d{3}-\d{2}$'
+          example: '123.456.789-00'
+          description: CPF (obrigatório para PRESTADOR)
+        phone:
+          type: string
+          nullable: true
+          pattern: '^\+?\d{10,14}$'
+          example: '+5511999999999'
+          description: Telefone (obrigatório para CLIENTE)
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+
+    CreateUserDto:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: João Silva
+        email:
+          type: string
+          format: email
+          example: joao@example.com
+        password:
+          type: string
+          minLength: 6
+          format: password
+          example: senha123
+        type:
+          $ref: '#/components/schemas/UserType'
+        cpf:
+          type: string
+          pattern: '^\d{3}\.\d{3}\.\d{3}-\d{2}$'
+          example: '123.456.789-00'
+          description: CPF (obrigatório para PRESTADOR)
+        phone:
+          type: string
+          pattern: '^\+?\d{10,14}$'
+          example: '+5511999999999'
+          description: Telefone (obrigatório para CLIENTE)
+
+    UpdateUserDto:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: João Silva
+        email:
+          type: string
+          format: email
+          example: joao@example.com
+        password:
+          type: string
+          minLength: 6
+          format: password
+          example: senha123
+        cpf:
+          type: string
+          pattern: '^\d{3}\.\d{3}\.\d{3}-\d{2}$'
+          example: '123.456.789-00'
+        phone:
+          type: string
+          pattern: '^\+?\d{10,14}$'
+          example: '+5511999999999'
+
+    SignupDto:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: João Silva
+        email:
+          type: string
+          format: email
+          example: joao@example.com
+        password:
+          type: string
+          minLength: 6
+          format: password
+          example: senha123
+        type:
+          $ref: '#/components/schemas/UserType'
+        cpf:
+          type: string
+          pattern: '^\d{3}\.\d{3}\.\d{3}-\d{2}$'
+          example: '123.456.789-00'
+          description: CPF (obrigatório para PRESTADOR)
+        phone:
+          type: string
+          pattern: '^\+?\d{10,14}$'
+          example: '+5511999999999'
+          description: Telefone (obrigatório para CLIENTE)
+
+    SignupOutput:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+        user:
+          $ref: '#/components/schemas/UserOutput'
+
+    LoginDto:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: joao@example.com
+        password:
+          type: string
+          format: password
+          example: senha123
+
+    LoginOutput:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+        user:
+          $ref: '#/components/schemas/UserOutput'
+
+    RequestResetPasswordDto:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: joao@example.com
+
+    ConfirmResetPasswordDto:
+      type: object
+      required:
+        - code
+        - password
+        - confirmPassword
+      properties:
+        code:
+          type: string
+          example: 'ABC123'
+        password:
+          type: string
+          minLength: 6
+          format: password
+          example: 'novaSenha123'
+        confirmPassword:
+          type: string
+          minLength: 6
+          format: password
+          example: 'novaSenha123'
+
+    ResetPasswordDto:
+      type: object
+      required:
+        - email
+        - newPassword
+      properties:
+        email:
+          type: string
+          format: email
+          example: joao@example.com
+        newPassword:
+          type: string
+          minLength: 6
+          format: password
+          example: 'novaSenha123'
+
+    AppointmentInterval:
+      type: integer
+      enum:
+        - 5
+        - 10
+        - 15
+        - 30
+      description: Intervalo entre agendamentos em minutos
+
+    WorkingHours:
+      type: object
+      properties:
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: Dia da semana (0=domingo, 6=sábado)
+          example: 1
+        isOpen:
+          type: boolean
+          example: true
+        openTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):([0-5]\d)$'
+          example: '09:00'
+          description: Horário de abertura (formato HH:mm)
+        closeTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):([0-5]\d)$'
+          example: '18:00'
+          description: Horário de fechamento (formato HH:mm)
+
+    Location:
+      type: object
+      required:
+        - street
+        - number
+        - neighborhood
+        - city
+        - state
+        - zipCode
+      properties:
+        street:
+          type: string
+          minLength: 3
+          example: Rua das Flores
+        number:
+          type: string
+          example: '123'
+        complement:
+          type: string
+          nullable: true
+          example: Apto 45
+        neighborhood:
+          type: string
+          minLength: 2
+          example: Centro
+        city:
+          type: string
+          minLength: 2
+          example: São Paulo
+        state:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: SP
+        zipCode:
+          type: string
+          pattern: '^\d{5}-?\d{3}$'
+          example: '01310-100'
+        latitude:
+          type: number
+          nullable: true
+          example: -23.5505
+        longitude:
+          type: number
+          nullable: true
+          example: -46.6333
+
+    StoreOutput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        name:
+          type: string
+          example: Salão de Beleza
+        userId:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        workingHours:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkingHours'
+        location:
+          $ref: '#/components/schemas/Location'
+        appointmentInterval:
+          $ref: '#/components/schemas/AppointmentInterval'
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://example.com/image.jpg'
+        imageBase64:
+          type: string
+          nullable: true
+          description: Imagem em base64 (retornada quando disponível)
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+
+    CreateStoreDto:
+      type: object
+      required:
+        - name
+        - userId
+        - workingHours
+        - location
+        - appointmentInterval
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: Salão de Beleza
+        userId:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        workingHours:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/WorkingHours'
+        location:
+          $ref: '#/components/schemas/Location'
+        appointmentInterval:
+          $ref: '#/components/schemas/AppointmentInterval'
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://example.com/image.jpg'
+
+    UpdateStoreDto:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: Salão de Beleza
+        workingHours:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/WorkingHours'
+        location:
+          $ref: '#/components/schemas/Location'
+        appointmentInterval:
+          $ref: '#/components/schemas/AppointmentInterval'
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://example.com/image.jpg'
+
+    ServiceOutput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        title:
+          type: string
+          example: Corte de Cabelo
+        description:
+          type: string
+          example: Corte de cabelo moderno e estiloso
+        price:
+          type: number
+          format: float
+          minimum: 0.01
+          example: 50.00
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          example: 60
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://example.com/image.jpg'
+        imageBase64:
+          type: string
+          nullable: true
+          description: Imagem em base64 (retornada quando disponível)
+        storeId:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+
+    CreateServiceDto:
+      type: object
+      required:
+        - title
+        - description
+        - price
+        - durationMinutes
+      properties:
+        title:
+          type: string
+          minLength: 2
+          example: Corte de Cabelo
+        description:
+          type: string
+          minLength: 10
+          example: Corte de cabelo moderno e estiloso
+        price:
+          type: number
+          format: float
+          minimum: 0.01
+          example: 50.00
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          example: 60
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://example.com/image.jpg'
+
+    UpdateServiceDto:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 2
+          example: Corte de Cabelo
+        description:
+          type: string
+          minLength: 10
+          example: Corte de cabelo moderno e estiloso
+        price:
+          type: number
+          format: float
+          minimum: 0.01
+          example: 50.00
+        durationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          example: 60
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://example.com/image.jpg'
+
+    AppointmentStatus:
+      type: string
+      enum:
+        - pending
+        - confirmed
+        - completed
+        - cancelled
+      description: Status do agendamento
+
+    AppointmentOutput:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        userId:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        storeId:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        serviceId:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        appointmentDate:
+          type: string
+          format: date-time
+          example: '2024-12-25T14:00:00.000Z'
+        status:
+          $ref: '#/components/schemas/AppointmentStatus'
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: 'Corte curto na lateral'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+        updatedAt:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+        store:
+          $ref: '#/components/schemas/StoreOutput'
+          nullable: true
+          description: Informações da loja (quando disponível)
+        service:
+          $ref: '#/components/schemas/ServiceOutput'
+          nullable: true
+          description: Informações do serviço (quando disponível)
+
+    CreateAppointmentDto:
+      type: object
+      required:
+        - storeId
+        - serviceId
+        - appointmentDate
+      properties:
+        storeId:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        serviceId:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        appointmentDate:
+          type: string
+          format: date-time
+          example: '2024-12-25T14:00:00.000Z'
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: 'Corte curto na lateral'
+
+    UpdateAppointmentDto:
+      type: object
+      properties:
+        appointmentDate:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2024-12-25T14:00:00.000Z'
+        status:
+          $ref: '#/components/schemas/AppointmentStatus'
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: 'Corte curto na lateral'
+
+    AvailableTimeSlot:
+      type: object
+      properties:
+        startTime:
+          type: string
+          format: time
+          example: '14:00'
+        endTime:
+          type: string
+          format: time
+          example: '15:00'
+        date:
+          type: string
+          format: date
+          example: '2024-12-25'
+
