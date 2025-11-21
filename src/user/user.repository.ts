@@ -51,7 +51,7 @@ export class UserRepository {
   async update(id: string, input: UpdateUserDto): Promise<UserEntity> {
     const user = await this.repository.findOne({ where: { id } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     const updateData: Partial<UserEntity> = { ...input };
     if (input.password) {

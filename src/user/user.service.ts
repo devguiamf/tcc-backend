@@ -23,7 +23,7 @@ export class UserService {
   async findById(id: string): Promise<UserOutput> {
     const user = await this.repository.findById(id);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     return this.mapToOutput(user);
   }
@@ -31,12 +31,12 @@ export class UserService {
   async update(id: string, input: UpdateUserDto): Promise<UserOutput> {
     const existingUser = await this.repository.findById(id);
     if (!existingUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     if (input.email) {
       const emailExists = await this.repository.findByEmail(input.email);
       if (emailExists && emailExists.id !== id) {
-        throw new ConflictException('Email already in use');
+        throw new ConflictException('E-mail já está em uso');
       }
     }
     const user = await this.repository.update(id, input);
@@ -46,7 +46,7 @@ export class UserService {
   async delete(id: string): Promise<void> {
     const user = await this.repository.findById(id);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     await this.repository.delete(id);
   }
@@ -54,13 +54,13 @@ export class UserService {
   private async validateUserData(input: CreateUserDto): Promise<void> {
     const emailExists = await this.repository.findByEmail(input.email);
     if (emailExists) {
-      throw new ConflictException('Email already in use');
+      throw new ConflictException('E-mail já está em uso');
     }
     if (input.type === UserType.CLIENTE && !input.phone) {
-      throw new BadRequestException('Phone is required for cliente type');
+      throw new BadRequestException('Telefone é obrigatório para tipo cliente');
     }
     if (input.type === UserType.PRESTADOR && !input.cpf) {
-      throw new BadRequestException('CPF is required for prestador type');
+      throw new BadRequestException('CPF é obrigatório para tipo prestador');
     }
   }
 

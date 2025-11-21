@@ -32,21 +32,21 @@ export class AppointmentService {
   async create(input: CreateAppointmentDto, userId: string): Promise<AppointmentOutput> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     if (user.type !== UserType.CLIENTE) {
-      throw new BadRequestException('Only users of type CLIENTE can create appointments');
+      throw new BadRequestException('Apenas usuários do tipo CLIENTE podem criar agendamentos');
     }
     const store = await this.storeRepository.findById(input.storeId);
     if (!store) {
-      throw new NotFoundException('Store not found');
+      throw new NotFoundException('Estabelecimento não encontrado');
     }
     const service = await this.serviceRepository.findById(input.serviceId);
     if (!service) {
-      throw new NotFoundException('Service not found');
+      throw new NotFoundException('Serviço não encontrado');
     }
     if (service.storeId !== store.id) {
-      throw new BadRequestException('Service does not belong to the specified store');
+      throw new BadRequestException('Serviço não pertence ao estabelecimento especificado');
     }
     const appointmentDate = new Date(input.appointmentDate);
     await this.validateAppointmentTime(input.storeId, input.serviceId, appointmentDate);
@@ -57,19 +57,19 @@ export class AppointmentService {
   async findById(id: string, userId: string): Promise<AppointmentOutput> {
     const appointment = await this.repository.findById(id);
     if (!appointment) {
-      throw new NotFoundException('Appointment not found');
+      throw new NotFoundException('Agendamento não encontrado');
     }
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     if (appointment.userId !== userId && user.type !== UserType.PRESTADOR) {
-      throw new ForbiddenException('You can only view your own appointments');
+      throw new ForbiddenException('Você só pode visualizar seus próprios agendamentos');
     }
     if (user.type === UserType.PRESTADOR) {
       const store = await this.storeRepository.findByUserId(userId);
       if (!store || store.id !== appointment.storeId) {
-        throw new ForbiddenException('You can only view appointments from your own store');
+        throw new ForbiddenException('Você só pode visualizar agendamentos da sua própria loja');
       }
     }
     return this.mapToOutput(appointment);
@@ -83,14 +83,14 @@ export class AppointmentService {
   async findByStoreId(storeId: string, userId: string): Promise<AppointmentOutput[]> {
     const store = await this.storeRepository.findById(storeId);
     if (!store) {
-      throw new NotFoundException('Store not found');
+      throw new NotFoundException('Estabelecimento não encontrado');
     }
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     if (user.type !== UserType.PRESTADOR || store.userId !== userId) {
-      throw new ForbiddenException('You can only view appointments from your own store');
+      throw new ForbiddenException('Você só pode visualizar agendamentos da sua própria loja');
     }
     const appointments = await this.repository.findByStoreId(storeId);
     return appointments.map((appointment) => this.mapToOutput(appointment));
@@ -103,14 +103,14 @@ export class AppointmentService {
   ): Promise<AvailableTimeSlot[]> {
     const store = await this.storeRepository.findById(storeId);
     if (!store) {
-      throw new NotFoundException('Store not found');
+      throw new NotFoundException('Estabelecimento não encontrado');
     }
     const service = await this.serviceRepository.findById(serviceId);
     if (!service) {
-      throw new NotFoundException('Service not found');
+      throw new NotFoundException('Serviço não encontrado');
     }
     if (service.storeId !== store.id) {
-      throw new BadRequestException('Service does not belong to the specified store');
+      throw new BadRequestException('Serviço não pertence ao estabelecimento especificado');
     }
     const targetDate = new Date(date);
     const startDate = new Date(targetDate);
@@ -124,13 +124,13 @@ export class AppointmentService {
   async update(id: string, input: UpdateAppointmentDto, userId: string): Promise<AppointmentOutput> {
     const appointment = await this.repository.findById(id);
     if (!appointment) {
-      throw new NotFoundException('Appointment not found');
+      throw new NotFoundException('Agendamento não encontrado');
     }
     if (appointment.userId !== userId) {
-      throw new ForbiddenException('You can only update your own appointments');
+      throw new ForbiddenException('Você só pode atualizar seus próprios agendamentos');
     }
     if (appointment.status === AppointmentStatus.CANCELLED) {
-      throw new BadRequestException('Cannot update a cancelled appointment');
+      throw new BadRequestException('Não é possível atualizar um agendamento cancelado');
     }
     if (input.appointmentDate) {
       const newDate = new Date(input.appointmentDate);
@@ -148,16 +148,16 @@ export class AppointmentService {
   async cancel(id: string, userId: string): Promise<AppointmentOutput> {
     const appointment = await this.repository.findById(id);
     if (!appointment) {
-      throw new NotFoundException('Appointment not found');
+      throw new NotFoundException('Agendamento não encontrado');
     }
     if (appointment.userId !== userId) {
-      throw new ForbiddenException('You can only cancel your own appointments');
+      throw new ForbiddenException('Você só pode cancelar seus próprios agendamentos');
     }
     if (appointment.status === AppointmentStatus.CANCELLED) {
-      throw new BadRequestException('Appointment is already cancelled');
+      throw new BadRequestException('Agendamento já está cancelado');
     }
     if (appointment.status === AppointmentStatus.COMPLETED) {
-      throw new BadRequestException('Cannot cancel a completed appointment');
+      throw new BadRequestException('Não é possível cancelar um agendamento concluído');
     }
     const updatedAppointment = await this.repository.update(id, {
       status: AppointmentStatus.CANCELLED,
@@ -168,10 +168,10 @@ export class AppointmentService {
   async delete(id: string, userId: string): Promise<void> {
     const appointment = await this.repository.findById(id);
     if (!appointment) {
-      throw new NotFoundException('Appointment not found');
+      throw new NotFoundException('Agendamento não encontrado');
     }
     if (appointment.userId !== userId) {
-      throw new ForbiddenException('You can only delete your own appointments');
+      throw new ForbiddenException('Você só pode excluir seus próprios agendamentos');
     }
     await this.repository.delete(id);
   }
@@ -183,18 +183,18 @@ export class AppointmentService {
     excludeId?: string,
   ): Promise<void> {
     if (appointmentDate < new Date()) {
-      throw new BadRequestException('Appointment date must be in the future');
+      throw new BadRequestException('A data do agendamento deve ser no futuro');
     }
     const store = await this.storeRepository.findById(storeId);
     if (!store) {
-      throw new NotFoundException('Store not found');
+      throw new NotFoundException('Estabelecimento não encontrado');
     }
     const service = await this.serviceRepository.findById(serviceId);
     if (!service) {
-      throw new NotFoundException('Service not found');
+      throw new NotFoundException('Serviço não encontrado');
     }
     if (!this.isWithinWorkingHours(store.workingHours, appointmentDate)) {
-      throw new BadRequestException('Appointment time is outside store working hours');
+      throw new BadRequestException('Horário do agendamento está fora do horário de funcionamento do estabelecimento');
     }
     const endTime = new Date(appointmentDate);
     endTime.setMinutes(endTime.getMinutes() + service.durationMinutes);
@@ -205,7 +205,7 @@ export class AppointmentService {
     const existingAppointments = await this.repository.findByDateRange(storeId, startOfDay, endOfDay);
     const hasConflictResult = await this.hasConflict(appointmentDate, endTime, existingAppointments, service, excludeId);
     if (hasConflictResult) {
-      throw new ConflictException('Appointment time conflicts with existing appointments');
+      throw new ConflictException('Horário do agendamento conflita com agendamentos existentes');
     }
   }
 

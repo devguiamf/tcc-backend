@@ -27,21 +27,21 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async requestPasswordReset(@Body() requestResetDto: RequestResetPasswordDto): Promise<{ message: string }> {
     await this.service.requestPasswordReset(requestResetDto);
-    return { message: 'If the email exists, a password reset link has been sent' };
+    return { message: 'Se o e-mail existir, um link de redefinição de senha foi enviado' };
   }
 
   @Post('confirm-password-reset')
   @HttpCode(HttpStatus.OK)
   async confirmPasswordReset(@Body() confirmResetDto: ConfirmResetPasswordDto): Promise<{ message: string }> {
     await this.service.confirmPasswordReset(confirmResetDto);
-    return { message: 'Password reset successfully' };
+    return { message: 'Senha redefinida com sucesso' };
   }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
     await this.service.resetPassword(resetPasswordDto);
-    return { message: 'Password reset successfully' };
+    return { message: 'Senha redefinida com sucesso' };
   }
 
   @Post('admin/test')

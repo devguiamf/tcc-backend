@@ -51,7 +51,7 @@ export class StoreService {
   async findById(id: string): Promise<StoreOutput> {
     const store = await this.repository.findById(id);
     if (!store) {
-      throw new NotFoundException('Store not found');
+      throw new NotFoundException('Estabelecimento não encontrado');
     }
     return await this.mapToOutput(store);
   }
@@ -59,7 +59,7 @@ export class StoreService {
   async findByUserId(userId: string): Promise<StoreOutput> {
     const store = await this.repository.findByUserId(userId);
     if (!store) {
-      throw new NotFoundException('Store not found for this user');
+      throw new NotFoundException('Estabelecimento não encontrado para este usuário');
     }
     return await this.mapToOutput(store);
   }
@@ -71,7 +71,7 @@ export class StoreService {
   ): Promise<StoreOutput> {
     const existingStore = await this.repository.findById(id);
     if (!existingStore) {
-      throw new NotFoundException('Store not found');
+      throw new NotFoundException('Estabelecimento não encontrado');
     }
     if (input.userId && input.userId !== existingStore.userId) {
       await this.validateUserCanHaveStore(input.userId);
@@ -94,7 +94,7 @@ export class StoreService {
   async delete(id: string): Promise<void> {
     const store = await this.repository.findById(id);
     if (!store) {
-      throw new NotFoundException('Store not found');
+      throw new NotFoundException('Estabelecimento não encontrado');
     }
     await this.fileService.deleteByModuleAndEntityId(FileModule.STORE, id);
     await this.repository.delete(id);
@@ -103,14 +103,14 @@ export class StoreService {
   private async validateStoreData(input: CreateStoreDto): Promise<void> {
     const user = await this.userRepository.findById(input.userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     if (user.type !== UserType.PRESTADOR) {
-      throw new BadRequestException('Only users of type PRESTADOR can have a store');
+      throw new BadRequestException('Apenas usuários do tipo PRESTADOR podem ter um estabelecimento');
     }
     const existingStore = await this.repository.findByUserId(input.userId);
     if (existingStore) {
-      throw new ConflictException('User already has a store');
+      throw new ConflictException('Usuário já possui um estabelecimento');
     }
     this.validateWorkingHours(input.workingHours);
   }
@@ -118,28 +118,28 @@ export class StoreService {
   private async validateUserCanHaveStore(userId: string): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     if (user.type !== UserType.PRESTADOR) {
-      throw new BadRequestException('Only users of type PRESTADOR can have a store');
+      throw new BadRequestException('Apenas usuários do tipo PRESTADOR podem ter um estabelecimento');
     }
     const existingStore = await this.repository.findByUserId(userId);
     if (existingStore) {
-      throw new ConflictException('User already has a store');
+      throw new ConflictException('Usuário já possui um estabelecimento');
     }
   }
 
   private validateWorkingHours(workingHours: Array<{ dayOfWeek: number; isOpen: boolean; openTime?: string; closeTime?: string }>): void {
     if (workingHours.length !== 7) {
-      throw new BadRequestException('Working hours must include all 7 days of the week');
+      throw new BadRequestException('Horário de funcionamento deve incluir todos os 7 dias da semana');
     }
     const daysOfWeek = new Set(workingHours.map((wh) => wh.dayOfWeek));
     if (daysOfWeek.size !== 7) {
-      throw new BadRequestException('Each day of the week must be unique');
+      throw new BadRequestException('Cada dia da semana deve ser único');
     }
     for (const wh of workingHours) {
       if (wh.isOpen && (!wh.openTime || !wh.closeTime)) {
-        throw new BadRequestException('Open time and close time are required when store is open');
+        throw new BadRequestException('Horário de abertura e fechamento são obrigatórios quando o estabelecimento está aberto');
       }
     }
   }

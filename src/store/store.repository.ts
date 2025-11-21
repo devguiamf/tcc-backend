@@ -65,7 +65,7 @@ export class StoreRepository {
   async update(id: string, input: UpdateStoreDto): Promise<StoreEntity> {
     const store = await this.repository.findOne({ where: { id } });
     if (!store) {
-      throw new NotFoundException('Store not found');
+      throw new NotFoundException('Estabelecimento não encontrado');
     }
     await this.repository.update(id, input);
     return await this.findById(id);

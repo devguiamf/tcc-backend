@@ -14,14 +14,14 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const token = this.extractTokenFromHeader(request);
     if (!token) {
-      throw new UnauthorizedException('Token not provided');
+      throw new UnauthorizedException('Token não fornecido');
     }
     try {
       const secret = this.configService.get<string>('JWT_SECRET') || 'default-secret-key-change-in-production';
       const payload = await this.jwtService.verifyAsync(token, { secret });
       request.user = { userId: payload.sub, sub: payload.sub };
     } catch {
-      throw new UnauthorizedException('Invalid token');
+      throw new UnauthorizedException('Token inválido');
     }
     return true;
   }

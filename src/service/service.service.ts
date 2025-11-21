@@ -28,7 +28,7 @@ export class ServiceService {
   ): Promise<ServiceOutput> {
     const store = await this.storeRepository.findByUserId(userId);
     if (!store) {
-      throw new NotFoundException('Store not found for this user');
+      throw new NotFoundException('Estabelecimento não encontrado para este usuário');
     }
     const service = await this.repository.create(input, store.id);
     if (file) {
@@ -56,7 +56,7 @@ export class ServiceService {
   async findById(id: string): Promise<ServiceOutput> {
     const service = await this.repository.findById(id);
     if (!service) {
-      throw new NotFoundException('Service not found');
+      throw new NotFoundException('Serviço não encontrado');
     }
     return await this.mapToOutput(service);
   }
@@ -72,7 +72,7 @@ export class ServiceService {
   async findByUserId(userId: string): Promise<ServiceOutput[]> {
     const store = await this.storeRepository.findByUserId(userId);
     if (!store) {
-      throw new NotFoundException('Store not found for this user');
+      throw new NotFoundException('Estabelecimento não encontrado para este usuário');
     }
     const services = await this.repository.findByStoreId(store.id);
     const outputs = await Promise.all(
@@ -89,11 +89,11 @@ export class ServiceService {
   ): Promise<ServiceOutput> {
     const service = await this.repository.findById(id);
     if (!service) {
-      throw new NotFoundException('Service not found');
+      throw new NotFoundException('Serviço não encontrado');
     }
     const store = await this.storeRepository.findByUserId(userId);
     if (!store || service.storeId !== store.id) {
-      throw new ForbiddenException('You can only update services from your own store');
+      throw new ForbiddenException('Você só pode atualizar serviços da sua própria loja');
     }
     const updatedService = await this.repository.update(id, input);
     if (file) {
@@ -113,11 +113,11 @@ export class ServiceService {
   async delete(id: string, userId: string): Promise<void> {
     const service = await this.repository.findById(id);
     if (!service) {
-      throw new NotFoundException('Service not found');
+      throw new NotFoundException('Serviço não encontrado');
     }
     const store = await this.storeRepository.findByUserId(userId);
     if (!store || service.storeId !== store.id) {
-      throw new ForbiddenException('You can only delete services from your own store');
+      throw new ForbiddenException('Você só pode excluir serviços da sua própria loja');
     }
     await this.fileService.deleteByModuleAndEntityId(FileModule.SERVICE, id);
     await this.repository.delete(id);

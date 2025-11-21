@@ -30,7 +30,7 @@ export class FileService {
     entityId: string,
   ): Promise<FileOutput> {
     if (!file) {
-      throw new BadRequestException('File is required');
+      throw new BadRequestException('Arquivo é obrigatório');
     }
     const fileName = this.generateFileName(file.originalname);
     const modulePath = join(this.uploadPath, module);
@@ -52,7 +52,7 @@ export class FileService {
   async findById(id: string): Promise<FileOutput> {
     const file = await this.repository.findById(id);
     if (!file) {
-      throw new NotFoundException('File not found');
+      throw new NotFoundException('Arquivo não encontrado');
     }
     return await this.mapToOutputWithBase64(file);
   }
@@ -71,7 +71,7 @@ export class FileService {
   async delete(id: string): Promise<void> {
     const file = await this.repository.findById(id);
     if (!file) {
-      throw new NotFoundException('File not found');
+      throw new NotFoundException('Arquivo não encontrado');
     }
     if (existsSync(file.filePath)) {
       unlinkSync(file.filePath);

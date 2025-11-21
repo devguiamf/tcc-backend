@@ -52,11 +52,11 @@ export class AuthService {
   async login(input: LoginDto): Promise<LoginOutput> {
     const user = await this.userRepository.findByEmailWithPassword(input.email);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Credenciais inválidas');
     }
     const isPasswordValid = await bcrypt.compare(input.password, user.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Credenciais inválidas');
     }
     const accessToken = this.generateToken(user.id);
     return {
@@ -88,21 +88,21 @@ export class AuthService {
 
   async confirmPasswordReset(input: ConfirmResetPasswordDto): Promise<void> {
     if (input.password !== input.confirmPassword) {
-      throw new BadRequestException('Passwords do not match');
+      throw new BadRequestException('As senhas não coincidem');
     }
     const resetCode = await this.passwordResetCodeRepository.findByCode(input.code);
     if (!resetCode) {
-      throw new BadRequestException('Invalid or expired reset code');
+      throw new BadRequestException('Código de redefinição inválido ou expirado');
     }
     if (resetCode.isUsed) {
-      throw new BadRequestException('Reset code has already been used');
+      throw new BadRequestException('Código de redefinição já foi utilizado');
     }
     if (resetCode.expiresAt < new Date()) {
-      throw new BadRequestException('Reset code has expired');
+      throw new BadRequestException('Código de redefinição expirado');
     }
     const user = await this.userRepository.findByEmail(resetCode.email);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     await this.userRepository.update(user.id, { password: input.password } as any);
     await this.passwordResetCodeRepository.markAsUsed(resetCode.id);
@@ -111,7 +111,7 @@ export class AuthService {
   async resetPassword(input: ResetPasswordDto): Promise<void> {
     const user = await this.userRepository.findByEmail(input.email);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado');
     }
     await this.userRepository.update(user.id, { password: input.newPassword } as any);
   }
@@ -119,13 +119,13 @@ export class AuthService {
   private async validateSignupData(input: SignupDto): Promise<void> {
     const emailExists = await this.userRepository.findByEmail(input.email);
     if (emailExists) {
-      throw new ConflictException('Email already in use');
+      throw new ConflictException('E-mail já está em uso');
     }
     if (input.type === UserType.CLIENTE && !input.phone) {
-      throw new BadRequestException('Phone is required for cliente type');
+      throw new BadRequestException('Telefone é obrigatório para tipo cliente');
     }
     if (input.type === UserType.PRESTADOR && !input.cpf) {
-      throw new BadRequestException('CPF is required for prestador type');
+      throw new BadRequestException('CPF é obrigatório para tipo prestador');
     }
   }
 
