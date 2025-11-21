@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { existsSync, mkdirSync, unlinkSync, createReadStream } from 'fs';
+import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { writeFile, readFile } from 'fs/promises';
 import { join } from 'path';
 import { FileRepository } from './file.repository';
@@ -68,26 +68,6 @@ export class FileService {
     return filesWithBase64;
   }
 
-  async getFileStream(id: string): Promise<{
-    stream: NodeJS.ReadableStream;
-    mimeType: string;
-    fileName: string;
-  }> {
-    const file = await this.repository.findById(id);
-    if (!file) {
-      throw new NotFoundException('File not found');
-    }
-    if (!existsSync(file.filePath)) {
-      throw new NotFoundException('File not found on disk');
-    }
-    const stream = createReadStream(file.filePath);
-    return {
-      stream,
-      mimeType: file.mimeType,
-      fileName: file.originalName,
-    };
-  }
-
   async delete(id: string): Promise<void> {
     const file = await this.repository.findById(id);
     if (!file) {
@@ -148,8 +128,7 @@ export class FileService {
   }
 
   private mapToOutput(file: FileEntity): FileOutput {
-    const baseUrl =
-      this.configService.get<string>('BASE_URL') || 'http://localhost:3000';
+    const baseUrl = this.configService.get<string>('BASE_URL') || 'http://localhost:3000';
     return {
       id: file.id,
       originalName: file.originalName,

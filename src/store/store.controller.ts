@@ -9,7 +9,6 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  UseGuards,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
@@ -19,7 +18,6 @@ import { StoreService } from './store.service';
 import { CreateStoreDto } from './models/dto/create-store.dto';
 import { UpdateStoreDto } from './models/dto/update-store.dto';
 import { StoreOutput } from './models/types/store.types';
-import { JwtAuthGuard } from '../core/guards/jwt-auth.guard';
 
 @Controller('stores')
 export class StoreController {

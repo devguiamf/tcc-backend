@@ -69,7 +69,6 @@ export class AppointmentRepository {
     });
   }
 
-
   async update(id: string, input: UpdateAppointmentDto): Promise<AppointmentEntity> {
     const appointment = await this.repository.findOne({ where: { id } });
     if (!appointment) {

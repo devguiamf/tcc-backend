@@ -2,8 +2,7 @@ import { Injectable, ConflictException, NotFoundException, BadRequestException }
 import { UserRepository } from './user.repository';
 import { CreateUserDto } from './models/dto/create-user.dto';
 import { UpdateUserDto } from './models/dto/update-user.dto';
-import { UserOutput } from './models/types/user.types';
-import { UserType } from './models/types/user.types';
+import { UserOutput, UserType } from './models/types/user.types';
 import { UserEntity } from './models/user.entity';
 
 @Injectable()

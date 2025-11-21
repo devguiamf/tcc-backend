@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import { PasswordResetCodeEntity } from '../models/password-reset-code.entity';
 
 @Injectable()
@@ -35,13 +35,6 @@ export class PasswordResetCodeRepository {
       { email, isUsed: false },
       { isUsed: true },
     );
-  }
-
-  async deleteExpiredCodes(): Promise<void> {
-    const now = new Date();
-    await this.repository.delete({
-      expiresAt: LessThan(now),
-    });
   }
 }
 

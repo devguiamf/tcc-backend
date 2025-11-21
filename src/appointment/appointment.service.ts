@@ -223,18 +223,24 @@ export class AppointmentService {
     const availableSlots: AvailableTimeSlot[] = [];
     const [openHour, openMinute] = workingHoursForDay.openTime.split(':').map(Number);
     const [closeHour, closeMinute] = workingHoursForDay.closeTime.split(':').map(Number);
-    const openTime = new Date(date);
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    const openTime = new Date(normalizedDate);
     openTime.setHours(openHour, openMinute, 0, 0);
-    const closeTime = new Date(date);
+    const closeTime = new Date(normalizedDate);
     closeTime.setHours(closeHour, closeMinute, 0, 0);
     let currentTime = new Date(openTime);
     while (currentTime < closeTime) {
       const slotEndTime = new Date(currentTime);
       slotEndTime.setMinutes(slotEndTime.getMinutes() + service.durationMinutes);
       if (slotEndTime <= closeTime) {
-        const hasConflictResult = await this.hasConflict(currentTime, slotEndTime, existingAppointments, service, undefined);
+        const normalizedCurrentTime = new Date(currentTime);
+        normalizedCurrentTime.setSeconds(0, 0);
+        const normalizedSlotEndTime = new Date(slotEndTime);
+        normalizedSlotEndTime.setSeconds(0, 0);
+        const hasConflictResult = await this.hasConflict(normalizedCurrentTime, normalizedSlotEndTime, existingAppointments, service, undefined);
         if (!hasConflictResult) {
-          const dateStr = date.toISOString().split('T')[0];
+          const dateStr = normalizedDate.toISOString().split('T')[0];
           const startTimeStr = `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`;
           const endTimeStr = `${String(slotEndTime.getHours()).padStart(2, '0')}:${String(slotEndTime.getMinutes()).padStart(2, '0')}`;
           availableSlots.push({
@@ -272,6 +278,11 @@ export class AppointmentService {
     service: ServiceEntity,
     excludeId?: string,
   ): Promise<boolean> {
+    const normalizedStartTime = new Date(startTime);
+    normalizedStartTime.setSeconds(0, 0);
+    const normalizedEndTime = new Date(endTime);
+    normalizedEndTime.setSeconds(0, 0);
+
     for (const appointment of existingAppointments) {
       if (appointment.status === AppointmentStatus.CANCELLED) {
         continue;
@@ -286,14 +297,15 @@ export class AppointmentService {
           continue;
         }
       }
+      const appointmentStartTime = new Date(appointment.appointmentDate);
+      appointmentStartTime.setSeconds(0, 0);
       const appointmentEndTime = new Date(appointment.appointmentDate);
+      appointmentEndTime.setSeconds(0, 0);
       appointmentEndTime.setMinutes(
         appointmentEndTime.getMinutes() + appointmentService.durationMinutes,
       );
       if (
-        (startTime >= appointment.appointmentDate && startTime < appointmentEndTime) ||
-        (endTime > appointment.appointmentDate && endTime <= appointmentEndTime) ||
-        (startTime <= appointment.appointmentDate && endTime >= appointmentEndTime)
+        (normalizedStartTime < appointmentEndTime && normalizedEndTime > appointmentStartTime)
       ) {
         return true;
       }
