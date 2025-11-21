@@ -17,6 +17,8 @@ import { StoreEntity } from '../store/models/store.entity';
 import { ServiceEntity } from '../service/models/service.entity';
 import { UserType } from '../user/models/types/user.types';
 import { WorkingHours } from '../store/models/types/store.types';
+import { StoreOutput } from '../store/models/types/store.types';
+import { ServiceOutput } from '../service/models/types/service.types';
 
 @Injectable()
 export class AppointmentService {
@@ -300,7 +302,7 @@ export class AppointmentService {
   }
 
   private mapToOutput(appointment: AppointmentEntity): AppointmentOutput {
-    return {
+    const output: AppointmentOutput = {
       id: appointment.id,
       userId: appointment.userId,
       storeId: appointment.storeId,
@@ -310,6 +312,41 @@ export class AppointmentService {
       notes: appointment.notes || undefined,
       createdAt: appointment.createdAt,
       updatedAt: appointment.updatedAt,
+    };
+    if (appointment.store) {
+      output.store = this.mapStoreToOutput(appointment.store);
+    }
+    if (appointment.service) {
+      output.service = this.mapServiceToOutput(appointment.service);
+    }
+    return output;
+  }
+
+  private mapStoreToOutput(store: StoreEntity): StoreOutput {
+    return {
+      id: store.id,
+      name: store.name,
+      userId: store.userId,
+      workingHours: store.workingHours,
+      location: store.location,
+      appointmentInterval: store.appointmentInterval,
+      imageUrl: store.imageUrl || undefined,
+      createdAt: store.createdAt,
+      updatedAt: store.updatedAt,
+    };
+  }
+
+  private mapServiceToOutput(service: ServiceEntity): ServiceOutput {
+    return {
+      id: service.id,
+      title: service.title,
+      description: service.description,
+      price: Number(service.price),
+      durationMinutes: service.durationMinutes,
+      imageUrl: service.imageUrl || undefined,
+      storeId: service.storeId,
+      createdAt: service.createdAt,
+      updatedAt: service.updatedAt,
     };
   }
 }

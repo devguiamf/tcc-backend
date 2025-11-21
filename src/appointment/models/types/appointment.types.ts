@@ -1,3 +1,6 @@
+import { ServiceOutput } from "@/service/models/types/service.types";
+import { StoreOutput } from "@/store/models/types/store.types";
+
 export enum AppointmentStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
@@ -15,6 +18,8 @@ export interface AppointmentOutput {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+  store?: StoreOutput;
+  service?: ServiceOutput;
 }
 
 export interface AvailableTimeSlot {

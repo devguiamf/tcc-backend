@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -35,8 +36,8 @@ export class StoreController {
   }
 
   @Get()
-  async findAll(): Promise<StoreOutput[]> {
-    return await this.service.findAll();
+  async findAll(@Query('search') search?: string): Promise<StoreOutput[]> {
+    return await this.service.findAll(search);
   }
 
   @Get(':id')

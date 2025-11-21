@@ -24,10 +24,28 @@ export class StoreRepository {
     return await this.repository.save(store);
   }
 
-  async findAll(): Promise<StoreEntity[]> {
-    return await this.repository.find({
-      relations: ['user'],
-    });
+  async findAll(searchTerm?: string): Promise<StoreEntity[]> {
+    const queryBuilder = this.repository.createQueryBuilder('store').leftJoinAndSelect('store.user', 'user');
+    if (searchTerm && searchTerm.trim()) {
+      const term = `%${searchTerm.trim().toLowerCase()}%`;
+      queryBuilder.where(
+        'LOWER(store.name) LIKE :term',
+        { term },
+      );
+    }
+    const stores = await queryBuilder.getMany();
+    if (searchTerm && searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      return stores.filter((store) => {
+        const location = store.location as any;
+        return (
+          store.name.toLowerCase().includes(term) ||
+          (location?.city && location.city.toLowerCase().includes(term)) ||
+          (location?.neighborhood && location.neighborhood.toLowerCase().includes(term))
+        );
+      });
+    }
+    return stores;
   }
 
   async findById(id: string): Promise<StoreEntity | null> {

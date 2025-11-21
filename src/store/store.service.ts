@@ -40,8 +40,8 @@ export class StoreService {
     return await this.mapToOutput(store);
   }
 
-  async findAll(): Promise<StoreOutput[]> {
-    const stores = await this.repository.findAll();
+  async findAll(searchTerm?: string): Promise<StoreOutput[]> {
+    const stores = await this.repository.findAll(searchTerm);
     const outputs = await Promise.all(
       stores.map((store) => this.mapToOutput(store)),
     );
