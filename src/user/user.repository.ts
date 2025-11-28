@@ -48,6 +48,13 @@ export class UserRepository {
     });
   }
 
+  async findByCpf(cpf: string): Promise<UserEntity | null> {
+    return await this.repository.findOne({
+      where: { cpf },
+      select: ['id', 'name', 'email', 'type', 'cpf', 'phone', 'createdAt', 'updatedAt'],
+    });
+  }
+
   async update(id: string, input: UpdateUserDto): Promise<UserEntity> {
     const user = await this.repository.findOne({ where: { id } });
     if (!user) {

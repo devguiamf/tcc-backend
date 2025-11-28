@@ -39,6 +39,12 @@ export class UserService {
         throw new ConflictException('E-mail já está em uso');
       }
     }
+    if (input.cpf) {
+      const cpfExists = await this.repository.findByCpf(input.cpf);
+      if (cpfExists && cpfExists.id !== id) {
+        throw new ConflictException('CPF já está em uso');
+      }
+    }
     const user = await this.repository.update(id, input);
     return this.mapToOutput(user);
   }
@@ -61,6 +67,12 @@ export class UserService {
     }
     if (input.type === UserType.PRESTADOR && !input.cpf) {
       throw new BadRequestException('CPF é obrigatório para tipo prestador');
+    }
+    if (input.cpf) {
+      const cpfExists = await this.repository.findByCpf(input.cpf);
+      if (cpfExists) {
+        throw new ConflictException('CPF já está em uso');
+      }
     }
   }
 

@@ -127,6 +127,12 @@ export class AuthService {
     if (input.type === UserType.PRESTADOR && !input.cpf) {
       throw new BadRequestException('CPF é obrigatório para tipo prestador');
     }
+    if (input.cpf) {
+      const cpfExists = await this.userRepository.findByCpf(input.cpf);
+      if (cpfExists) {
+        throw new ConflictException('CPF já está em uso');
+      }
+    }
   }
 
   private generateToken(userId: string): string {

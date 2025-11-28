@@ -25,7 +25,7 @@ export class UserEntity {
   @Column(getUserTypeColumnOptions())
   type: UserType;
 
-  @Column({ type: 'varchar', length: 14, nullable: true })
+  @Column({ type: 'varchar', length: 14, nullable: true, unique: true })
   cpf: string | null;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
