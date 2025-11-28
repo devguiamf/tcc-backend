@@ -19,6 +19,8 @@ import { UserType } from '../user/models/types/user.types';
 import { WorkingHours } from '../store/models/types/store.types';
 import { StoreOutput } from '../store/models/types/store.types';
 import { ServiceOutput } from '../service/models/types/service.types';
+import { UserOutput } from '../user/models/types/user.types';
+import { UserEntity } from '../user/models/user.entity';
 
 @Injectable()
 export class AppointmentService {
@@ -96,6 +98,53 @@ export class AppointmentService {
     return appointments.map((appointment) => this.mapToOutput(appointment));
   }
 
+  async findByStoreIdWithFilters(
+    storeId: string,
+    userId: string,
+    options: {
+      date?: string;
+      status?: AppointmentStatus;
+      includeFuture?: boolean;
+    },
+  ): Promise<AppointmentOutput[]> {
+    const store = await this.storeRepository.findById(storeId);
+    if (!store) {
+      throw new NotFoundException('Estabelecimento não encontrado');
+    }
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    if (user.type !== UserType.PRESTADOR || store.userId !== userId) {
+      throw new ForbiddenException('Você só pode visualizar agendamentos da sua própria loja');
+    }
+    const appointments = await this.repository.findByStoreIdWithFilters(storeId, options);
+    return appointments.map((appointment) => this.mapToOutput(appointment));
+  }
+
+  async findMyStoreAppointments(
+    userId: string,
+    options: {
+      date?: string;
+      status?: AppointmentStatus;
+      includeFuture?: boolean;
+    },
+  ): Promise<AppointmentOutput[]> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    if (user.type !== UserType.PRESTADOR) {
+      throw new ForbiddenException('Apenas prestadores podem acessar agendamentos da loja');
+    }
+    const store = await this.storeRepository.findByUserId(userId);
+    if (!store) {
+      throw new NotFoundException('Você não possui uma loja cadastrada');
+    }
+    const appointments = await this.repository.findByStoreIdWithFilters(store.id, options);
+    return appointments.map((appointment) => this.mapToOutput(appointment));
+  }
+
   async findAvailableTimeSlots(
     storeId: string,
     serviceId: string,
@@ -126,13 +175,20 @@ export class AppointmentService {
     if (!appointment) {
       throw new NotFoundException('Agendamento não encontrado');
     }
-    if (appointment.userId !== userId) {
-      throw new ForbiddenException('Você só pode atualizar seus próprios agendamentos');
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    const isOwner = appointment.userId === userId;
+    const isStoreOwnerResult = await this.isStoreOwner(userId, appointment.storeId);
+    console.log('[UPDATE] userId:', userId, 'userType:', user.type, 'appointmentUserId:', appointment.userId, 'storeId:', appointment.storeId, 'isOwner:', isOwner, 'isStoreOwner:', isStoreOwnerResult);
+    if (!isOwner && !isStoreOwnerResult) {
+      throw new ForbiddenException('Você não tem permissão para atualizar este agendamento');
     }
     if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new BadRequestException('Não é possível atualizar um agendamento cancelado');
     }
-    if (input.appointmentDate) {
+    if (input.appointmentDate && !isStoreOwnerResult) {
       const newDate = new Date(input.appointmentDate);
       await this.validateAppointmentTime(
         appointment.storeId,
@@ -150,8 +206,11 @@ export class AppointmentService {
     if (!appointment) {
       throw new NotFoundException('Agendamento não encontrado');
     }
-    if (appointment.userId !== userId) {
-      throw new ForbiddenException('Você só pode cancelar seus próprios agendamentos');
+    const isOwner = appointment.userId === userId;
+    const isStoreOwnerResult = await this.isStoreOwner(userId, appointment.storeId);
+    console.log('[CANCEL] userId:', userId, 'appointmentUserId:', appointment.userId, 'storeId:', appointment.storeId, 'isOwner:', isOwner, 'isStoreOwner:', isStoreOwnerResult);
+    if (!isOwner && !isStoreOwnerResult) {
+      throw new ForbiddenException('Você não tem permissão para cancelar este agendamento');
     }
     if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new BadRequestException('Agendamento já está cancelado');
@@ -163,6 +222,21 @@ export class AppointmentService {
       status: AppointmentStatus.CANCELLED,
     });
     return this.mapToOutput(updatedAppointment);
+  }
+
+  private async isStoreOwner(userId: string, storeId: string): Promise<boolean> {
+    const user = await this.userRepository.findById(userId);
+    if (!user || user.type !== UserType.PRESTADOR) {
+      console.log('[isStoreOwner] User not found or not PRESTADOR. userId:', userId, 'userType:', user?.type);
+      return false;
+    }
+    const store = await this.storeRepository.findById(storeId);
+    if (!store) {
+      console.log('[isStoreOwner] Store not found. storeId:', storeId);
+      return false;
+    }
+    console.log('[isStoreOwner] Checking ownership. storeUserId:', store.userId, 'currentUserId:', userId, 'match:', store.userId === userId);
+    return store.userId === userId;
   }
 
   async delete(id: string, userId: string): Promise<void> {
@@ -331,6 +405,9 @@ export class AppointmentService {
     if (appointment.service) {
       output.service = this.mapServiceToOutput(appointment.service);
     }
+    if (appointment.user) {
+      output.user = this.mapUserToOutput(appointment.user);
+    }
     return output;
   }
 
@@ -359,6 +436,19 @@ export class AppointmentService {
       storeId: service.storeId,
       createdAt: service.createdAt,
       updatedAt: service.updatedAt,
+    };
+  }
+
+  private mapUserToOutput(user: UserEntity): UserOutput {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      type: user.type,
+      cpf: user.cpf || undefined,
+      phone: user.phone || undefined,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 }

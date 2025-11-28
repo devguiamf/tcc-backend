@@ -1,5 +1,6 @@
 import { ServiceOutput } from "@/service/models/types/service.types";
 import { StoreOutput } from "@/store/models/types/store.types";
+import { UserOutput } from "@/user/models/types/user.types";
 
 export enum AppointmentStatus {
   PENDING = 'pending',
@@ -20,6 +21,7 @@ export interface AppointmentOutput {
   updatedAt: Date;
   store?: StoreOutput;
   service?: ServiceOutput;
+  user?: UserOutput;
 }
 
 export interface AvailableTimeSlot {

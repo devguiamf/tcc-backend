@@ -14,7 +14,7 @@ import {
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './models/dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './models/dto/update-appointment.dto';
-import { AppointmentOutput, AvailableTimeSlot } from './models/types/appointment.types';
+import { AppointmentOutput, AvailableTimeSlot, AppointmentStatus } from './models/types/appointment.types';
 import { JwtAuthGuard } from '../core/guards/jwt-auth.guard';
 import { CurrentUser } from '../core/decorators/current-user.decorator';
 
@@ -45,6 +45,21 @@ export class AppointmentController {
     @CurrentUser() userId: string,
   ): Promise<AppointmentOutput[]> {
     return await this.service.findByStoreId(storeId, userId);
+  }
+
+  @Get('my-store')
+  @UseGuards(JwtAuthGuard)
+  async findMyStoreAppointments(
+    @CurrentUser() userId: string,
+    @Query('date') date?: string,
+    @Query('status') status?: AppointmentStatus,
+    @Query('includeFuture') includeFuture?: string,
+  ): Promise<AppointmentOutput[]> {
+    return await this.service.findMyStoreAppointments(userId, {
+      date,
+      status,
+      includeFuture: includeFuture === 'true',
+    });
   }
 
   @Get('available-slots/:storeId/:serviceId')

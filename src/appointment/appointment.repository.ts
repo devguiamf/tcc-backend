@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, FindOptionsWhere, MoreThanOrEqual } from 'typeorm';
 import { AppointmentEntity } from './models/appointment.entity';
 import { CreateAppointmentDto } from './models/dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './models/dto/update-appointment.dto';
+import { AppointmentStatus } from './models/types/appointment.types';
 
 @Injectable()
 export class AppointmentRepository {
@@ -64,6 +65,37 @@ export class AppointmentRepository {
         storeId,
         appointmentDate: Between(startDate, endDate),
       },
+      relations: ['user', 'store', 'service'],
+      order: { appointmentDate: 'ASC' },
+    });
+  }
+
+  async findByStoreIdWithFilters(
+    storeId: string,
+    options: {
+      date?: string;
+      status?: AppointmentStatus;
+      includeFuture?: boolean;
+    },
+  ): Promise<AppointmentEntity[]> {
+    const where: FindOptionsWhere<AppointmentEntity> = { storeId };
+    if (options.status) {
+      where.status = options.status;
+    }
+    if (options.date) {
+      const targetDate = new Date(options.date);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      where.appointmentDate = Between(startOfDay, endOfDay);
+    } else if (options.includeFuture) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      where.appointmentDate = MoreThanOrEqual(now);
+    }
+    return await this.repository.find({
+      where,
       relations: ['user', 'store', 'service'],
       order: { appointmentDate: 'ASC' },
     });
