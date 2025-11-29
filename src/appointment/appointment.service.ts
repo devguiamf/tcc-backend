@@ -22,6 +22,38 @@ import { ServiceOutput } from '../service/models/types/service.types';
 import { UserOutput } from '../user/models/types/user.types';
 import { UserEntity } from '../user/models/user.entity';
 
+/** Converte horário "HH:mm" para minutos desde meia-noite */
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+/** Formata minutos para string "HH:mm" */
+function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60) % 24;
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+/** Formata data para string "YYYY-MM-DD" */
+function formatDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** Cria uma data local a partir de string "YYYY-MM-DD" */
+function parseDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+}
+
+/** Verifica se dois intervalos de tempo se sobrepõem */
+function intervalsOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
+  return start1 < end2 && end1 > start2;
+}
+
 @Injectable()
 export class AppointmentService {
   constructor(
@@ -208,6 +240,16 @@ export class AppointmentService {
     };
   }
 
+  /**
+   * Busca horários disponíveis para agendamento.
+   * 
+   * Regras:
+   * 1. Respeita o horário de funcionamento da loja no dia
+   * 2. Usa o intervalo de agendamento definido na loja
+   * 3. Considera a duração do serviço
+   * 4. Exclui horários já ocupados por outros agendamentos
+   * 5. Para o dia atual, exclui horários que já passaram
+   */
   async findAvailableTimeSlots(
     storeId: string,
     serviceId: string,
@@ -224,13 +266,119 @@ export class AppointmentService {
     if (service.storeId !== store.id) {
       throw new BadRequestException('Serviço não pertence ao estabelecimento especificado');
     }
-    const targetDate = new Date(date);
-    const startDate = new Date(targetDate);
+    const targetDate = parseDate(date);
+    const workingHours = this.getWorkingHoursForDay(store.workingHours, targetDate.getDay());
+    if (!workingHours) {
+      return [];
+    }
+    const existingAppointments = await this.findAppointmentsForSlotCalculation(storeId, targetDate, workingHours);
+    const occupiedSlots = this.buildOccupiedSlots(existingAppointments, targetDate);
+    return this.generateAvailableSlots({
+      date: targetDate,
+      workingHours,
+      serviceDuration: service.durationMinutes,
+      interval: store.appointmentInterval,
+      occupiedSlots,
+    });
+  }
+
+  /** Retorna o horário de funcionamento para um dia da semana, ou null se fechado */
+  private getWorkingHoursForDay(workingHours: WorkingHours[], dayOfWeek: number): WorkingHours | null {
+    const hours = workingHours.find((wh) => wh.dayOfWeek === dayOfWeek);
+    return hours?.isOpen ? hours : null;
+  }
+
+  /** Busca agendamentos que podem conflitar com o dia solicitado */
+  private async findAppointmentsForSlotCalculation(
+    storeId: string,
+    date: Date,
+    workingHours: WorkingHours,
+  ): Promise<AppointmentEntity[]> {
+    const startDate = new Date(date);
     startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(targetDate);
+    const endDate = new Date(date);
     endDate.setHours(23, 59, 59, 999);
-    const existingAppointments = await this.repository.findByDateRange(storeId, startDate, endDate);
-    return await this.calculateAvailableTimeSlots(store, service, targetDate, existingAppointments);
+    // Se horário atravessa meia-noite, estender busca para o próximo dia
+    const openMinutes = timeToMinutes(workingHours.openTime);
+    const closeMinutes = timeToMinutes(workingHours.closeTime);
+    if (closeMinutes <= openMinutes) {
+      endDate.setDate(endDate.getDate() + 1);
+      endDate.setHours(Math.floor(closeMinutes / 60), closeMinutes % 60, 0, 0);
+    }
+    return this.repository.findByDateRange(storeId, startDate, endDate);
+  }
+
+  /** Converte agendamentos existentes em intervalos ocupados (em minutos desde meia-noite) */
+  private buildOccupiedSlots(
+    appointments: AppointmentEntity[],
+    targetDate: Date,
+  ): Array<{ start: number; end: number }> {
+    const targetDateStr = formatDate(targetDate);
+    return appointments
+      .filter((apt) => apt.status !== AppointmentStatus.CANCELLED && apt.service)
+      .map((apt) => {
+        const aptDate = new Date(apt.appointmentDate);
+        const aptDateStr = formatDate(aptDate);
+        const startMinutes = aptDate.getHours() * 60 + aptDate.getMinutes();
+        const endMinutes = startMinutes + apt.service.durationMinutes;
+        // Se o agendamento é do dia seguinte (atravessou meia-noite), adiciona 24h
+        const dayOffset = aptDateStr !== targetDateStr ? 24 * 60 : 0;
+        return {
+          start: startMinutes + dayOffset,
+          end: endMinutes + dayOffset,
+        };
+      });
+  }
+
+  /** Gera lista de horários disponíveis */
+  private generateAvailableSlots(params: {
+    date: Date;
+    workingHours: WorkingHours;
+    serviceDuration: number;
+    interval: number;
+    occupiedSlots: Array<{ start: number; end: number }>;
+  }): AvailableTimeSlot[] {
+    const { date, workingHours, serviceDuration, interval, occupiedSlots } = params;
+    const openMinutes = timeToMinutes(workingHours.openTime);
+    let closeMinutes = timeToMinutes(workingHours.closeTime);
+    // Se atravessa meia-noite, closeMinutes > 24h
+    if (closeMinutes <= openMinutes) {
+      closeMinutes += 24 * 60;
+    }
+    const minSlotStart = this.calculateMinSlotStart(date, openMinutes, interval);
+    const slots: AvailableTimeSlot[] = [];
+    for (let slotStart = minSlotStart; slotStart + serviceDuration <= closeMinutes; slotStart += interval) {
+      const slotEnd = slotStart + serviceDuration;
+      const hasConflict = occupiedSlots.some((occupied) =>
+        intervalsOverlap(slotStart, slotEnd, occupied.start, occupied.end)
+      );
+      if (!hasConflict) {
+        // Calcula a data real do slot (pode ser dia seguinte se passou de meia-noite)
+        const slotDate = new Date(date);
+        if (slotStart >= 24 * 60) {
+          slotDate.setDate(slotDate.getDate() + 1);
+        }
+        slots.push({
+          date: formatDate(slotDate),
+          startTime: minutesToTime(slotStart),
+          endTime: minutesToTime(slotEnd),
+        });
+      }
+    }
+    return slots;
+  }
+
+  /** Calcula o horário mínimo para slots (para hoje, pula horários passados) */
+  private calculateMinSlotStart(date: Date, openMinutes: number, interval: number): number {
+    const now = new Date();
+    const isToday = formatDate(date) === formatDate(now);
+    if (!isToday) {
+      return openMinutes;
+    }
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    // Arredonda para o próximo slot disponível
+    const nextSlot = Math.ceil((currentMinutes + interval) / interval) * interval;
+    return Math.max(openMinutes, nextSlot);
   }
 
   async update(id: string, input: UpdateAppointmentDto, userId: string): Promise<AppointmentOutput> {
@@ -244,7 +392,6 @@ export class AppointmentService {
     }
     const isOwner = appointment.userId === userId;
     const isStoreOwnerResult = await this.isStoreOwner(userId, appointment.storeId);
-    console.log('[UPDATE] userId:', userId, 'userType:', user.type, 'appointmentUserId:', appointment.userId, 'storeId:', appointment.storeId, 'isOwner:', isOwner, 'isStoreOwner:', isStoreOwnerResult);
     if (!isOwner && !isStoreOwnerResult) {
       throw new ForbiddenException('Você não tem permissão para atualizar este agendamento');
     }
@@ -271,7 +418,6 @@ export class AppointmentService {
     }
     const isOwner = appointment.userId === userId;
     const isStoreOwnerResult = await this.isStoreOwner(userId, appointment.storeId);
-    console.log('[CANCEL] userId:', userId, 'appointmentUserId:', appointment.userId, 'storeId:', appointment.storeId, 'isOwner:', isOwner, 'isStoreOwner:', isStoreOwnerResult);
     if (!isOwner && !isStoreOwnerResult) {
       throw new ForbiddenException('Você não tem permissão para cancelar este agendamento');
     }
@@ -290,15 +436,12 @@ export class AppointmentService {
   private async isStoreOwner(userId: string, storeId: string): Promise<boolean> {
     const user = await this.userRepository.findById(userId);
     if (!user || user.type !== UserType.PRESTADOR) {
-      console.log('[isStoreOwner] User not found or not PRESTADOR. userId:', userId, 'userType:', user?.type);
       return false;
     }
     const store = await this.storeRepository.findById(storeId);
     if (!store) {
-      console.log('[isStoreOwner] Store not found. storeId:', storeId);
       return false;
     }
-    console.log('[isStoreOwner] Checking ownership. storeUserId:', store.userId, 'currentUserId:', userId, 'match:', store.userId === userId);
     return store.userId === userId;
   }
 
@@ -313,6 +456,7 @@ export class AppointmentService {
     await this.repository.delete(id);
   }
 
+  /** Valida se um horário de agendamento é válido */
   private async validateAppointmentTime(
     storeId: string,
     serviceId: string,
@@ -333,117 +477,69 @@ export class AppointmentService {
     if (!this.isWithinWorkingHours(store.workingHours, appointmentDate)) {
       throw new BadRequestException('Horário do agendamento está fora do horário de funcionamento do estabelecimento');
     }
-    const endTime = new Date(appointmentDate);
-    endTime.setMinutes(endTime.getMinutes() + service.durationMinutes);
-    const startOfDay = new Date(appointmentDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(appointmentDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    const existingAppointments = await this.repository.findByDateRange(storeId, startOfDay, endOfDay);
-    const hasConflictResult = await this.hasConflict(appointmentDate, endTime, existingAppointments, service, excludeId);
-    if (hasConflictResult) {
+    const hasConflict = await this.checkAppointmentConflict(
+      storeId,
+      appointmentDate,
+      service.durationMinutes,
+      excludeId,
+    );
+    if (hasConflict) {
       throw new ConflictException('Horário do agendamento conflita com agendamentos existentes');
     }
   }
 
-  private async calculateAvailableTimeSlots(
-    store: StoreEntity,
-    service: ServiceEntity,
-    date: Date,
-    existingAppointments: AppointmentEntity[],
-  ): Promise<AvailableTimeSlot[]> {
-    const dayOfWeek = date.getDay();
-    const workingHoursForDay = store.workingHours.find((wh) => wh.dayOfWeek === dayOfWeek);
-    if (!workingHoursForDay || !workingHoursForDay.isOpen) {
-      return [];
-    }
-    const availableSlots: AvailableTimeSlot[] = [];
-    const [openHour, openMinute] = workingHoursForDay.openTime.split(':').map(Number);
-    const [closeHour, closeMinute] = workingHoursForDay.closeTime.split(':').map(Number);
-    const normalizedDate = new Date(date);
-    normalizedDate.setHours(0, 0, 0, 0);
-    const openTime = new Date(normalizedDate);
-    openTime.setHours(openHour, openMinute, 0, 0);
-    const closeTime = new Date(normalizedDate);
-    closeTime.setHours(closeHour, closeMinute, 0, 0);
-    let currentTime = new Date(openTime);
-    while (currentTime < closeTime) {
-      const slotEndTime = new Date(currentTime);
-      slotEndTime.setMinutes(slotEndTime.getMinutes() + service.durationMinutes);
-      if (slotEndTime <= closeTime) {
-        const normalizedCurrentTime = new Date(currentTime);
-        normalizedCurrentTime.setSeconds(0, 0);
-        const normalizedSlotEndTime = new Date(slotEndTime);
-        normalizedSlotEndTime.setSeconds(0, 0);
-        const hasConflictResult = await this.hasConflict(normalizedCurrentTime, normalizedSlotEndTime, existingAppointments, service, undefined);
-        if (!hasConflictResult) {
-          const dateStr = normalizedDate.toISOString().split('T')[0];
-          const startTimeStr = `${String(currentTime.getHours()).padStart(2, '0')}:${String(currentTime.getMinutes()).padStart(2, '0')}`;
-          const endTimeStr = `${String(slotEndTime.getHours()).padStart(2, '0')}:${String(slotEndTime.getMinutes()).padStart(2, '0')}`;
-          availableSlots.push({
-            startTime: startTimeStr,
-            endTime: endTimeStr,
-            date: dateStr,
-          });
-        }
-      }
-      currentTime.setMinutes(currentTime.getMinutes() + store.appointmentInterval);
-    }
-    return availableSlots;
-  }
-
+  /** Verifica se um horário está dentro do expediente da loja */
   private isWithinWorkingHours(workingHours: WorkingHours[], appointmentDate: Date): boolean {
     const dayOfWeek = appointmentDate.getDay();
-    const workingHoursForDay = workingHours.find((wh) => wh.dayOfWeek === dayOfWeek);
-    if (!workingHoursForDay || !workingHoursForDay.isOpen) {
-      return false;
+    const appointmentMinutes = appointmentDate.getHours() * 60 + appointmentDate.getMinutes();
+    // Verifica horário de funcionamento do dia atual
+    const todayHours = workingHours.find((wh) => wh.dayOfWeek === dayOfWeek);
+    if (todayHours?.isOpen) {
+      const open = timeToMinutes(todayHours.openTime);
+      const close = timeToMinutes(todayHours.closeTime);
+      const crossesMidnight = close <= open;
+      if (crossesMidnight) {
+        // Ex: 09:00 - 02:00 → válido se >= 09:00
+        if (appointmentMinutes >= open) return true;
+      } else {
+        // Horário normal → válido se dentro do intervalo
+        if (appointmentMinutes >= open && appointmentMinutes < close) return true;
+      }
     }
-    const [openHour, openMinute] = workingHoursForDay.openTime.split(':').map(Number);
-    const [closeHour, closeMinute] = workingHoursForDay.closeTime.split(':').map(Number);
-    const appointmentHour = appointmentDate.getHours();
-    const appointmentMinute = appointmentDate.getMinutes();
-    const appointmentMinutes = appointmentHour * 60 + appointmentMinute;
-    const openMinutes = openHour * 60 + openMinute;
-    const closeMinutes = closeHour * 60 + closeMinute;
-    return appointmentMinutes >= openMinutes && appointmentMinutes < closeMinutes;
+    // Verifica se está no período pós-meia-noite do dia anterior
+    const previousDay = (dayOfWeek + 6) % 7;
+    const prevHours = workingHours.find((wh) => wh.dayOfWeek === previousDay);
+    if (prevHours?.isOpen) {
+      const prevOpen = timeToMinutes(prevHours.openTime);
+      const prevClose = timeToMinutes(prevHours.closeTime);
+      // Se dia anterior atravessa meia-noite e estamos antes do fechamento
+      if (prevClose <= prevOpen && appointmentMinutes < prevClose) return true;
+    }
+    return false;
   }
 
-  private async hasConflict(
-    startTime: Date,
-    endTime: Date,
-    existingAppointments: AppointmentEntity[],
-    service: ServiceEntity,
+  /** Verifica se há conflito com agendamentos existentes */
+  private async checkAppointmentConflict(
+    storeId: string,
+    appointmentDate: Date,
+    durationMinutes: number,
     excludeId?: string,
   ): Promise<boolean> {
-    const normalizedStartTime = new Date(startTime);
-    normalizedStartTime.setSeconds(0, 0);
-    const normalizedEndTime = new Date(endTime);
-    normalizedEndTime.setSeconds(0, 0);
-
-    for (const appointment of existingAppointments) {
-      if (appointment.status === AppointmentStatus.CANCELLED) {
-        continue;
-      }
-      if (excludeId && appointment.id === excludeId) {
-        continue;
-      }
-      let appointmentService = appointment.service;
-      if (!appointmentService) {
-        appointmentService = await this.serviceRepository.findById(appointment.serviceId);
-        if (!appointmentService) {
-          continue;
-        }
-      }
-      const appointmentStartTime = new Date(appointment.appointmentDate);
-      appointmentStartTime.setSeconds(0, 0);
-      const appointmentEndTime = new Date(appointment.appointmentDate);
-      appointmentEndTime.setSeconds(0, 0);
-      appointmentEndTime.setMinutes(
-        appointmentEndTime.getMinutes() + appointmentService.durationMinutes,
-      );
-      if (
-        (normalizedStartTime < appointmentEndTime && normalizedEndTime > appointmentStartTime)
-      ) {
+    const startOfDay = new Date(appointmentDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(appointmentDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    const appointments = await this.repository.findByDateRange(storeId, startOfDay, endOfDay);
+    const newStart = appointmentDate.getHours() * 60 + appointmentDate.getMinutes();
+    const newEnd = newStart + durationMinutes;
+    for (const apt of appointments) {
+      if (apt.status === AppointmentStatus.CANCELLED) continue;
+      if (excludeId && apt.id === excludeId) continue;
+      if (!apt.service) continue;
+      const aptDate = new Date(apt.appointmentDate);
+      const aptStart = aptDate.getHours() * 60 + aptDate.getMinutes();
+      const aptEnd = aptStart + apt.service.durationMinutes;
+      if (intervalsOverlap(newStart, newEnd, aptStart, aptEnd)) {
         return true;
       }
     }
