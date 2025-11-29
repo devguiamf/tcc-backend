@@ -672,7 +672,7 @@ describe('AppointmentRepository', () => {
       const createdAppointment = await repository.create(inputDto, testUser.id);
       const updateDto: UpdateAppointmentDto = {
         appointmentDate: '2024-12-27T15:00:00Z',
-        status: AppointmentStatus.COMPLETED,
+        status: AppointmentStatus.CONFIRMED,
         notes: 'Updated notes',
       };
 
@@ -680,7 +680,7 @@ describe('AppointmentRepository', () => {
 
       expect(updatedAppointment).toBeDefined();
       expect(updatedAppointment.appointmentDate.getTime()).toBe(new Date(updateDto.appointmentDate!).getTime());
-      expect(updatedAppointment.status).toBe(AppointmentStatus.COMPLETED);
+      expect(updatedAppointment.status).toBe(AppointmentStatus.CONFIRMED);
       expect(updatedAppointment.notes).toBe(updateDto.notes);
     });
 

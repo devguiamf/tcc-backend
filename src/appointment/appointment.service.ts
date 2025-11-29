@@ -11,7 +11,7 @@ import { ServiceRepository } from '../service/service.repository';
 import { UserRepository } from '../user/user.repository';
 import { CreateAppointmentDto } from './models/dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './models/dto/update-appointment.dto';
-import { AppointmentOutput, AvailableTimeSlot, AppointmentStatus } from './models/types/appointment.types';
+import { AppointmentOutput, AvailableTimeSlot, AppointmentStatus, StoreStatistics } from './models/types/appointment.types';
 import { AppointmentEntity } from './models/appointment.entity';
 import { StoreEntity } from '../store/models/store.entity';
 import { ServiceEntity } from '../service/models/service.entity';
@@ -145,6 +145,69 @@ export class AppointmentService {
     return appointments.map((appointment) => this.mapToOutput(appointment));
   }
 
+  async getMyStoreStatistics(userId: string): Promise<StoreStatistics> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    if (user.type !== UserType.PRESTADOR) {
+      throw new ForbiddenException('Apenas prestadores podem acessar estatísticas da loja');
+    }
+    const store = await this.storeRepository.findByUserId(userId);
+    if (!store) {
+      throw new NotFoundException('Você não possui uma loja cadastrada');
+    }
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    endOfMonth.setHours(23, 59, 59, 999);
+    const todayAppointments = await this.repository.findTodayAppointmentsByStore(store.id);
+    const todayConfirmedAppointments = await this.repository.findConfirmedByStoreAndDateRange(
+      store.id,
+      startOfToday,
+      endOfToday,
+    );
+    const weekConfirmedAppointments = await this.repository.findConfirmedByStoreAndDateRange(
+      store.id,
+      startOfWeek,
+      endOfToday,
+    );
+    const monthlyClients = await this.repository.countUniqueClientsByStoreAndDateRange(
+      store.id,
+      startOfMonth,
+      endOfMonth,
+    );
+    const todayRevenue = todayConfirmedAppointments.reduce((sum, apt) => {
+      return sum + (apt.service ? Number(apt.service.price) : 0);
+    }, 0);
+    const weekRevenue = weekConfirmedAppointments.reduce((sum, apt) => {
+      return sum + (apt.service ? Number(apt.service.price) : 0);
+    }, 0);
+    const todayTotal = todayAppointments.length;
+    const todayPending = todayAppointments.filter((a) => a.status === AppointmentStatus.PENDING).length;
+    const todayConfirmed = todayAppointments.filter((a) => a.status === AppointmentStatus.CONFIRMED).length;
+    const todayCancelled = todayAppointments.filter((a) => a.status === AppointmentStatus.CANCELLED).length;
+    const confirmationRate = todayTotal > 0 ? Math.round((todayConfirmed / todayTotal) * 100) : 0;
+    return {
+      todayRevenue,
+      weekRevenue,
+      monthlyClients,
+      todayTotal,
+      todayPending,
+      todayConfirmed,
+      todayCancelled,
+      confirmationRate,
+    };
+  }
+
   async findAvailableTimeSlots(
     storeId: string,
     serviceId: string,
@@ -215,8 +278,8 @@ export class AppointmentService {
     if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new BadRequestException('Agendamento já está cancelado');
     }
-    if (appointment.status === AppointmentStatus.COMPLETED) {
-      throw new BadRequestException('Não é possível cancelar um agendamento concluído');
+    if (appointment.status === AppointmentStatus.CONFIRMED) {
+      throw new BadRequestException('Não é possível cancelar um agendamento confirmado');
     }
     const updatedAppointment = await this.repository.update(id, {
       status: AppointmentStatus.CANCELLED,

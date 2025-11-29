@@ -14,7 +14,7 @@ import {
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './models/dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './models/dto/update-appointment.dto';
-import { AppointmentOutput, AvailableTimeSlot, AppointmentStatus } from './models/types/appointment.types';
+import { AppointmentOutput, AvailableTimeSlot, AppointmentStatus, StoreStatistics } from './models/types/appointment.types';
 import { JwtAuthGuard } from '../core/guards/jwt-auth.guard';
 import { CurrentUser } from '../core/decorators/current-user.decorator';
 
@@ -60,6 +60,12 @@ export class AppointmentController {
       status,
       includeFuture: includeFuture === 'true',
     });
+  }
+
+  @Get('my-store/statistics')
+  @UseGuards(JwtAuthGuard)
+  async getMyStoreStatistics(@CurrentUser() userId: string): Promise<StoreStatistics> {
+    return await this.service.getMyStoreStatistics(userId);
   }
 
   @Get('available-slots/:storeId/:serviceId')

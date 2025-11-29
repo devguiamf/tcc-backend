@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, FindOptionsWhere, MoreThanOrEqual } from 'typeorm';
+import { Repository, Between, FindOptionsWhere, MoreThanOrEqual, MoreThan } from 'typeorm';
 import { AppointmentEntity } from './models/appointment.entity';
 import { CreateAppointmentDto } from './models/dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './models/dto/update-appointment.dto';
@@ -122,6 +122,52 @@ export class AppointmentRepository {
 
   async delete(id: string): Promise<void> {
     await this.repository.delete(id);
+  }
+
+  async findConfirmedByStoreAndDateRange(
+    storeId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<AppointmentEntity[]> {
+    return await this.repository.find({
+      where: {
+        storeId,
+        status: AppointmentStatus.CONFIRMED,
+        appointmentDate: Between(startDate, endDate),
+      },
+      relations: ['service'],
+    });
+  }
+
+  async countUniqueClientsByStoreAndDateRange(
+    storeId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<number> {
+    const result = await this.repository
+      .createQueryBuilder('appointment')
+      .select('COUNT(DISTINCT appointment.userId)', 'count')
+      .where('appointment.storeId = :storeId', { storeId })
+      .andWhere('appointment.status = :status', { status: AppointmentStatus.CONFIRMED })
+      .andWhere('appointment.appointmentDate BETWEEN :startDate AND :endDate', { startDate, endDate })
+      .getRawOne();
+    return parseInt(result?.count || '0', 10);
+  }
+
+  async findTodayAppointmentsByStore(storeId: string): Promise<AppointmentEntity[]> {
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+    return await this.repository.find({
+      where: {
+        storeId,
+        appointmentDate: Between(startOfDay, endOfDay),
+      },
+      relations: ['service'],
+      order: { appointmentDate: 'ASC' },
+    });
   }
 }
 

@@ -5,7 +5,6 @@ import { UserOutput } from "@/user/models/types/user.types";
 export enum AppointmentStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
-  COMPLETED = 'completed',
   CANCELLED = 'cancelled',
 }
 
@@ -28,5 +27,16 @@ export interface AvailableTimeSlot {
   startTime: string;
   endTime: string;
   date: string;
+}
+
+export interface StoreStatistics {
+  todayRevenue: number;
+  weekRevenue: number;
+  monthlyClients: number;
+  todayTotal: number;
+  todayPending: number;
+  todayConfirmed: number;
+  todayCancelled: number;
+  confirmationRate: number;
 }
 

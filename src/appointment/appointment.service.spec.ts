@@ -934,7 +934,7 @@ describe('AppointmentService', () => {
       };
 
       const createdAppointment = await service.create(inputDto, testClient.id);
-      await service.update(createdAppointment.id, { status: AppointmentStatus.COMPLETED }, testClient.id);
+      await service.update(createdAppointment.id, { status: AppointmentStatus.CONFIRMED }, testClient.id);
 
       await expect(service.cancel(createdAppointment.id, testClient.id)).rejects.toThrow(BadRequestException);
       await expect(service.cancel(createdAppointment.id, testClient.id)).rejects.toThrow(
