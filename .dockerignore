@@ -1,11 +1,40 @@
-node_modules
-npm-debug.log
-dist
-.env
-.git
-.gitignore
-README.md
-coverage
-.nyc_output
-*.log
+# Dependencies
+node_modules/
 
+# Build output (será gerado dentro do container)
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test
+test/
+coverage/
+.nyc_output/
+**/*.spec.ts
+
+# Documentation
+*.md
+*.pdf
+
+# Uploads locais
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db

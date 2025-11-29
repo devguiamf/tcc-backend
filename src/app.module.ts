@@ -8,8 +8,10 @@ import { StoreModule } from './store/store.module';
 import { ServiceModule } from './service/service.module';
 import { AppointmentModule } from './appointment/appointment.module';
 import { FileModule } from './file/file.module';
+import { HealthController } from './health.controller';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
@@ -25,7 +27,7 @@ import { FileModule } from './file/file.module';
         password: configService.get<string>('DB_PASSWORD') || 'app_password',
         database: configService.get<string>('DB_DATABASE') || 'backend_tcc',
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get<string>('NODE_ENV') === 'development',
+        synchronize: true,
         logging: configService.get<string>('NODE_ENV') === 'development',
       }),
       inject: [ConfigService],
