@@ -16,6 +16,7 @@ import { SignupOutput, LoginOutput } from './models/types/auth.types';
 import { UserType } from '../user/models/types/user.types';
 import { CreateUserDto } from '../user/models/dto/create-user.dto';
 import { PasswordResetCodeRepository } from './repositories/password-reset-code.repository';
+import { EmailService } from '../core/email/email.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
@@ -29,6 +30,7 @@ export class AuthService {
     private readonly userRepository: UserRepository,
     private readonly jwtService: JwtService,
     private readonly passwordResetCodeRepository: PasswordResetCodeRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   async signup(input: SignupDto): Promise<SignupOutput> {
@@ -84,6 +86,21 @@ export class AuthService {
     expiresAt.setHours(expiresAt.getHours() + this.RESET_CODE_EXPIRATION_HOURS);
     await this.passwordResetCodeRepository.invalidateUserCodes(input.email);
     await this.passwordResetCodeRepository.create(input.email, resetCode, expiresAt);
+    await this.emailService.sendPasswordResetEmail(input.email, resetCode);
+  }
+
+  async verifyResetToken(token: string): Promise<{ valid: boolean; email?: string }> {
+    const resetCode = await this.passwordResetCodeRepository.findByCode(token);
+    if (!resetCode) {
+      return { valid: false };
+    }
+    if (resetCode.isUsed) {
+      return { valid: false };
+    }
+    if (resetCode.expiresAt < new Date()) {
+      return { valid: false };
+    }
+    return { valid: true, email: resetCode.email };
   }
 
   async confirmPasswordReset(input: ConfirmResetPasswordDto): Promise<void> {

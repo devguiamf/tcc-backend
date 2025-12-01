@@ -10,8 +10,8 @@ async function bootstrap(): Promise<void> {
   const allowedOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
     : [
-        'http://82.25.65.149',
-        'http://82.25.65.149:80',
+        'http://localhost',
+        'http://localhost:80',
         'http://localhost:4200',
         'http://localhost',
         'capacitor://localhost',

@@ -3,6 +3,7 @@ import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseConfigService } from './config/database-config.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { EmailService } from './email/email.service';
 
 @Global()
 @Module({
@@ -22,8 +23,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       inject: [ConfigService],
     }),
   ],
-  providers: [DatabaseConfigService, JwtAuthGuard],
-  exports: [DatabaseConfigService, JwtAuthGuard, JwtModule],
+  providers: [DatabaseConfigService, JwtAuthGuard, EmailService],
+  exports: [DatabaseConfigService, JwtAuthGuard, JwtModule, EmailService],
 })
 export class CoreModule {}
 

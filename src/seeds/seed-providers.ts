@@ -436,7 +436,7 @@ async function runSeed(): Promise<void> {
 
   const dataSource = new DataSource({
     type: 'mysql',
-    host: '82.25.65.149',
+    host: 'localhost',
     port: 3306,
     username: 'agendoo_user',
     password: 'agendoo_password',

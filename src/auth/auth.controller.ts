@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, Param } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './models/dto/signup.dto';
 import { LoginDto } from './models/dto/login.dto';
@@ -42,6 +42,12 @@ export class AuthController {
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
     await this.service.resetPassword(resetPasswordDto);
     return { message: 'Senha redefinida com sucesso' };
+  }
+
+  @Get('verify-reset-token/:token')
+  @HttpCode(HttpStatus.OK)
+  async verifyResetToken(@Param('token') token: string): Promise<{ valid: boolean; email?: string }> {
+    return await this.service.verifyResetToken(token);
   }
 
   @Post('admin/test')
